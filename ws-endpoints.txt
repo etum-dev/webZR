@@ -1,0 +1,9 @@
+ws
+ws/v1
+ws/v2
+socket.io/?EIO=3&transport=websocket
+socket.io/?EIO=4&transport=websocket
+stream
+feed
+block
+chain
