@@ -2,7 +2,20 @@ package scan
 
 import(
 	//"github.com/gorilla/websocket"
+	//"bytes"
+	"bufio"
+	"os"
+	"fmt"
+	"github.com/etum-dev/WebZR/basicfuzz"
 )
+
+// This file will look for WS and then maybe send to the fuzz things
+
+type Target struct {
+	domain string
+	baselineBody []byte
+	abnormalBody []byte
+}
 
 type CheckResult struct {
 	Domain	string `json:"domain"`
@@ -10,23 +23,10 @@ type CheckResult struct {
 	Successful	bool	`json:"successful"`
 }
 
-func CheckHeaders(url string) error {
-	// TODO: most likely has to tweak these 4 speed
-	// ... Do I even need this? Can I connect to WS directly?
-	/*
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: false,
-			},
-			MaxIdleConns:	100,
-			MaxIdleConnsPerHost: 10,
-		},
-
-	} */
-	
+func ConnToWS(url string){
+	basicfuzz.NewWSFuzzer(url)
 }
+
 
 func CheckJS(url string){
 	// Parse sites js to find if it has ws estab.
@@ -34,7 +34,16 @@ func CheckJS(url string){
 }
 
 func ScanEndpoint(endpointsFile string, url string){
-
+	// just example one for now. add as opt later. 
+	wordlist, err := os.Open("")
+	if err != nil {
+		fmt.Println("buh")
+	}
+	defer wordlist.Close()
+	scanner := bufio.NewScanner(wordlist)
+	for scanner.Scan(){
+		fmt.Println("asdasdasda %s\n", scanner.Text())
+	}
 }
 
 func ScanSubdomain(url string){

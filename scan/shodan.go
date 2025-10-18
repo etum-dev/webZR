@@ -23,6 +23,7 @@ func AuthShodan() string {
 
 func SearchShodan(){
 	shodan_env := AuthShodan()
+	log.Println("Auth and search ok")
 	//TODO: exclude honeypot tags
 	// we have to filter this after results unless enterprise user.
 	shodanQuery := search.Params{
