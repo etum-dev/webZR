@@ -1,7 +1,7 @@
-package scan
+package main
 import(
-	"testing"
-	"os"
+//	"testing"
+//	"os"
 )
 
 // test to not murder and ban myself from eg akamai
@@ -11,4 +11,3 @@ const (
 )
 
 
-func TestGetRemote()

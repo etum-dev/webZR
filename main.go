@@ -11,8 +11,10 @@ import(
 
 func main(){
 
-	isTest := flag.Bool("test",true,"Use the local test server")
+	isTest := flag.Bool("test",false,"Use the local test server")
 	fuzzOpt := flag.Int("fuzz",1,"Fuzzing option. 1 for basic, 2 for custom header, 3 for mutation")
+	proxyOpt := flag.String("proxy")
+	//customheader := flag.String("BugBounty: xyz")
 	flag.Parse()
 	if *isTest == true {
 		basicfuzz.ServeWs()
@@ -26,7 +28,8 @@ func main(){
 
 
 
-	scan.AuthShodan()
+	//scan.AuthShodan()
+	scan.SendConnRequest("https://stream.binance.com/stream")
 }
 // need more methods to identify websockets
 

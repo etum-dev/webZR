@@ -9,3 +9,7 @@ import (
 func TestSimpleFuzz(t *testing.T) {
 	basicfuzz.SimpleFuzz()
 }
+
+func TestHomeServer(t *testing.T) {
+	basicfuzz.ServeWss()
+}

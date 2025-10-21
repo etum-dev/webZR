@@ -1,4 +1,4 @@
 echo.websocket.org
 3d.kalidoface.com
 goarn.who.int
-binance.com
+stream.binance.com

@@ -16,7 +16,9 @@ func AuthShodan() string {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("where teh FUCK is the env file")
+		log.Fatal("asdasdasd",err)
 	}
+
 	shodankey := os.Getenv("SHODAN_API_KEY")
 	return shodankey
 }
