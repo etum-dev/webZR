@@ -58,11 +58,13 @@ func SendConnRequest(url string){
 	// - If connection possible
 	// - If connection possible and allows for ws://
 	// GET (endpoint) -> 101 resp
-	res, err := http.Get(url)
+	
+	wssURL := "wss://" + url 
+	resp, err := http.Get(wssURL)
 	if err != nil {
-		fmt.Println(err)
-	} 
-	fmt.Println(res)
+		panic(err)
+	}
+	defer resp.Body.Close()
 
 }
 
