@@ -49,23 +49,12 @@ func processIn(inputFile string, args []string, hasStdin bool) {
 	}
 }
 
-// checkFlagPassed reports whether a flag with the given name was explicitly provided on the command line.
-// Example: checkFlagPassed("file") -> true if user used -file=/some/path
-func checkFlagPassed(name string) bool {
-	found := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
-		}
-	})
-	return found
-}
-
 func main() {
 	// flags
 	isTest := flag.Bool("test", false, "Use the local test server")
-	fuzzOpt := flag.Int("fuzz", 1, "Fuzzing option. 1 for basic, 2 for custom header, 3 for mutation")
+	fuzzOpt := flag.Int("fuzz", 0, "Fuzzing option. 1 for basic, 2 for custom header, 3 for mutation")
 	fileOpt := flag.String("file", "", "Path to input file (optional)")
+	singleDomain := flag.String("domain", "", "Single domain")
 
 	flag.Parse()
 
@@ -75,7 +64,6 @@ func main() {
 	// detect whether there's piped stdin
 	hasStdin := false
 	if fi, err := os.Stdin.Stat(); err == nil {
-		// If stdin is not a char device, something is being piped in
 		if (fi.Mode() & os.ModeCharDevice) == 0 {
 			hasStdin = true
 		}
@@ -85,23 +73,23 @@ func main() {
 	// call it when user passed a file flag, or provided positional args, or piped stdin.
 	if *fileOpt != "" || len(args) > 0 || hasStdin {
 		processIn(*fileOpt, args, hasStdin)
+	} else if *singleDomain != "" {
+		scan.SendConnRequest(*singleDomain)
 	} else {
-		// No input provided; that's fine — do nothing or print a helpful hint
-		fmt.Fprintln(os.Stderr, "no input provided (no -file, no args, no piped stdin). Continuing...")
+
+		fmt.Println("Usage: provide -file=domains.txt, -domain=example.com, or domains as arguments")
 	}
 
-	// rest of program logic
 	if *isTest {
 		basicfuzz.ServeWs()
 	}
 
-	if *fuzzOpt == 1 {
+	switch *fuzzOpt {
+	case 1:
 		fmt.Println("Doing a simple fuzz.")
 		basicfuzz.SimpleFuzz()
-	} else {
+	case 0:
 		fmt.Println("Not fuzzing")
 	}
 
-	// example: always send this (same as your original)
-	scan.SendConnRequest("stream.binance.com/stream")
 }
