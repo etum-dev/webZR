@@ -31,3 +31,5 @@ WebZR supports three ways to provide domains:
      cat domains.txt | webzr
      echo "example.com" | webzr
      ```
+
+   

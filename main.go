@@ -75,7 +75,8 @@ func main() {
 	if *fileOpt != "" || len(args) > 0 || hasStdin {
 		processIn(*fileOpt, args, hasStdin)
 	} else if *singleDomain != "" {
-		isws := scan.SendConnRequest(*singleDomain)
+		d := utils.CheckDomain(*singleDomain)
+		isws := scan.SendConnRequest(d)
 		fmt.Println(isws)
 	} else {
 

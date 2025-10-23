@@ -1,7 +1,7 @@
 package scan
 
 import (
-	"net/url"
+	"time"
 
 	"github.com/gorilla/websocket"
 	//"bytes"
@@ -39,58 +39,53 @@ func ScanSubdomain(url string) {
 
 func SendConnRequest(domain string) bool {
 	/* Attempts to connect via ws and wss. Should flag for:
-	// - If connection possible
-	// - If connection possible and allows for ws://*/
+	- If connection possible
+	- allows for ws://
+	*/
+
 	schemes := []string{"wss", "ws"}
 	for _, scheme := range schemes {
 		// Parse to separate host and path properly
-		parsedURL, err := url.Parse("https://" + domain)
-		if err != nil {
-			fmt.Printf("Failed to parse domain %s: %v\n", domain, err)
-			continue
-		}
-
-		u := url.URL{Scheme: scheme, Host: parsedURL.Host, Path: parsedURL.Path}
-		if u.Path == "" {
-			u.Path = "/"
-		}
-		wsUrl := u.String()
+		wsUrl := scheme + "://" + domain
 
 		dialer := websocket.Dialer{
-			// add timeout
+			HandshakeTimeout: 5 * time.Second,
 		}
 		conn, resp, err := dialer.Dial(wsUrl, nil)
 
-		if resp.StatusCode != 101 {
-			continue
-		}
 		if err != nil {
-			fmt.Printf("%s:  %v \n", wsUrl, err)
-			//return false
+			// Enable this line if verbose mode
+			//fmt.Printf("wtf %s:  %v \n", wsUrl, err)
+			continue 
 		}
-		defer conn.Close()
+		if resp == nil {
+			fmt.Printf("rip %s, no response\n", wsUrl)
+			continue // Skip to next scheme
+		}
 
-		fmt.Printf("yay conn %s (Status %d)\n", wsUrl, resp.StatusCode)
-
-		/* flagging if we can conn with insecure ws:
-		if scheme == "ws" {
-			fmt.Printf("(`L_` )!! Insecure WS GET しました")
+		// only defer close if conn is not nil
+		if conn != nil {
+			defer conn.Close()
+		}
+		if resp.StatusCode == 101 {
+			fmt.Printf("yay conn %s (Status %d)\n", wsUrl, resp.StatusCode)
+			if scheme == "ws" {
+				fmt.Printf("(`L_` )!! Insecure WS GET しました\n")
+			}
 		} else {
-			fmt.Printf("wss only, good boy\n")
-			continue
-		} */
+			fmt.Printf("No 101, no bitches %s : %d\n", wsUrl, resp.StatusCode)
+		}
 
 	}
 	return true
 }
+
+//
 
 func CorsITaket(url string, ownserver string) {
 	// Check if it validates origin'
 	/* if (cors not validated) {
 		send request with own server value
 	}*/
-
-	// ideally, i make this pipeable from eg interactsh.
-	// How do tools like httpx take such inputs?
 
 }
