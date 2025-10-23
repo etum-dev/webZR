@@ -8,10 +8,10 @@ import (
 
 	"github.com/etum-dev/WebZR/basicfuzz"
 	"github.com/etum-dev/WebZR/scan"
+	"github.com/etum-dev/WebZR/utils"
 )
 
 // processIn consumes optional file, args and/or stdin and prints each line/item.
-// You can replace the fmt.Println calls with whatever processing you need.
 func processIn(inputFile string, args []string, hasStdin bool) {
 	// process positional args first (if any)
 	if len(args) > 0 {
@@ -19,8 +19,6 @@ func processIn(inputFile string, args []string, hasStdin bool) {
 			fmt.Println("arg:", a)
 		}
 	}
-
-	// process file if supplied
 	if inputFile != "" {
 		f, err := os.Open(inputFile)
 		if err != nil {
@@ -28,8 +26,11 @@ func processIn(inputFile string, args []string, hasStdin bool) {
 		} else {
 			defer f.Close()
 			sc := bufio.NewScanner(f)
+
 			for sc.Scan() {
-				fmt.Println("file:", sc.Text())
+				fmt.Println(sc.Text())
+				d := utils.CheckDomain(sc.Text())
+				scan.ScanEndpoint(d)
 			}
 			if err := sc.Err(); err != nil {
 				fmt.Fprintf(os.Stderr, "error reading file %s: %v\n", inputFile, err)
@@ -74,7 +75,8 @@ func main() {
 	if *fileOpt != "" || len(args) > 0 || hasStdin {
 		processIn(*fileOpt, args, hasStdin)
 	} else if *singleDomain != "" {
-		scan.SendConnRequest(*singleDomain)
+		isws := scan.SendConnRequest(*singleDomain)
+		fmt.Println(isws)
 	} else {
 
 		fmt.Println("Usage: provide -file=domains.txt, -domain=example.com, or domains as arguments")
