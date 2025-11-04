@@ -5,11 +5,28 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/etum-dev/WebZR/basicfuzz"
 	"github.com/etum-dev/WebZR/scan"
 	"github.com/etum-dev/WebZR/utils"
 )
+
+// i dont know how concurrency works fuck you
+func ResultWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+	var of *os.File
+	var err error
+	filename := "ass.json"
+	if filename != "" {
+		of, err = os.Create(filename)
+		if err != nil {
+			fmt.Println("File creation failed", err)
+		}
+		defer of.Close()
+	}
+
+}
 
 // processIn consumes optional file, args and/or stdin and prints each line/item.
 func processIn(inputFile string, args []string, hasStdin bool) {
@@ -27,11 +44,14 @@ func processIn(inputFile string, args []string, hasStdin bool) {
 			defer f.Close()
 			sc := bufio.NewScanner(f)
 
+			var scannedDomains []string
 			for sc.Scan() {
-				fmt.Println(sc.Text())
-				d := utils.CheckDomain(sc.Text())
-				scan.ScanEndpoint(d)
+				doScan(utils.CheckDomain(sc.Text()))
+				scannedDomains = append(scannedDomains)
+				fmt.Println(scannedDomains)
+
 			}
+			//utils.WriteShit("/tmp/testfilename.json", scannedDomains)
 			if err := sc.Err(); err != nil {
 				fmt.Fprintf(os.Stderr, "error reading file %s: %v\n", inputFile, err)
 			}
@@ -48,6 +68,16 @@ func processIn(inputFile string, args []string, hasStdin bool) {
 			fmt.Fprintf(os.Stderr, "error reading stdin: %v\n", err)
 		}
 	}
+}
+func doScan(d string) string {
+	endpoints := scan.ScanEndpoint(d)
+	subdomains := scan.ScanSubdomain(d)
+
+	// write output to file (TODO: make cli option later):
+	fmt.Println(endpoints)
+	fmt.Println(subdomains)
+
+	return d
 }
 
 func main() {
@@ -70,8 +100,6 @@ func main() {
 		}
 	}
 
-	// Decide whether to call processIn:
-	// call it when user passed a file flag, or provided positional args, or piped stdin.
 	if *fileOpt != "" || len(args) > 0 || hasStdin {
 		processIn(*fileOpt, args, hasStdin)
 	} else if *singleDomain != "" {

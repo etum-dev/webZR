@@ -5,6 +5,12 @@ please dont use this lol
 
 Websocket testing framework i built for ... reasons i forgot
 
+
+### Identification methodologies
+Simple dir and sub fuzz
+TODO: Javascript parsing
+TODO: CSP Headers
+
 ### Options     
 
 | Flag | Type | Description |
