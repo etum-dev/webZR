@@ -17,24 +17,50 @@ func CheckJS(url string) {
 	// Should be delegated to tools like katana and idk rg
 }
 
+// ScanEndpoint tries to connect to common WebSocket endpoints for a given domain
+// It reads endpoints from ws-endpoints.txt and attempts connections
 func ScanEndpoint(url string) utils.ScanResult {
-	// just example one for now. add as opt later.
-	fmt.Println("now scanning: ", url)
-	wordlist, err := os.Open("ws-endpoints.txt")
+	fmt.Printf("\n[*] Scanning endpoints for: %s\n", url)
 
+	wordlist, err := os.Open("ws-endpoints.txt")
 	if err != nil {
-		fmt.Println("buh", err)
+		fmt.Printf("[-] Cannot open ws-endpoints.txt: %v\n", err)
+		fmt.Println("[*] Skipping endpoint scan, trying base domain only...")
+
+		// Try just the base domain
+		result := SendConnRequest(url)
+		if result != nil {
+			return *result
+		}
+
+		// Return empty result if nothing worked
+		return utils.ScanResult{
+			Host:    url,
+			Success: false,
+		}
 	}
 	defer wordlist.Close()
+
+	// Try each endpoint from the wordlist
 	scanner := bufio.NewScanner(wordlist)
 	for scanner.Scan() {
-		de := url + scanner.Text()
-		fmt.Println(de)
-		SendConnRequest(de)
+		endpoint := scanner.Text()
+		fullURL := url + endpoint
 
+		fmt.Printf("[*] Trying endpoint: %s\n", endpoint)
+		result := SendConnRequest(fullURL)
+
+		// If we found a working endpoint, return it immediately
+		if result != nil && result.Success {
+			return *result
+		}
 	}
-	scanResult := utils.ScanResult{Host: url}
-	return scanResult
+
+	// No endpoints worked
+	return utils.ScanResult{
+		Host:    url,
+		Success: false,
+	}
 }
 
 func ScanSubdomain(url string) utils.ScanResult {
@@ -66,46 +92,76 @@ func ScanSubdomain(url string) utils.ScanResult {
 	return *placeholder
 }
 
-func SendConnRequest(domain string) bool {
+// SendConnRequest attempts to establish WebSocket connections using both wss:// and ws://
+// Returns a ScanResult with connection details, or nil if no connection succeeded
+func SendConnRequest(domain string) *utils.ScanResult {
 	/* Attempts to connect via ws and wss. Should flag for:
 	- If connection possible
 	- allows for ws://
 	*/
 
-	schemes := []string{"wss", "ws"}
+	schemes := []string{"wss", "ws"} // Try secure first, then insecure
+
 	for _, scheme := range schemes {
-		// Parse to separate host and path properly
+		// Build the full WebSocket URL
 		wsUrl := scheme + "://" + domain
+
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 5 * time.Second,
 		}
+
 		conn, resp, err := dialer.Dial(wsUrl, nil)
+
 		if err != nil {
+			// Connection failed - try next scheme
 			// Enable this line if verbose mode
-			//fmt.Printf("wtf %s:  %v \n", wsUrl, err)
+			//fmt.Printf("Connection failed %s: %v\n", wsUrl, err)
 			continue
 		}
+
 		if resp == nil {
-			fmt.Printf("rip %s, no response\n", wsUrl)
-			continue // Skip to next scheme
+			fmt.Printf("[-] %s: no response received\n", wsUrl)
+			continue
 		}
-		// only defer close if conn is not nil
+
+		// Close connection if established
 		if conn != nil {
 			defer conn.Close()
 		}
-		if resp.StatusCode == 101 {
-			fmt.Printf("yay conn %s (Status %d)\n", wsUrl, resp.StatusCode)
-			// write the url to log:
 
-			if scheme == "ws" {
-				fmt.Printf("(`L_` )!! Insecure WS GET しました\n")
+		// HTTP 101 = "Switching Protocols" = WebSocket handshake successful
+		if resp.StatusCode == 101 {
+			isInsecure := (scheme == "ws")
+
+			fmt.Printf("[+] WebSocket connection established: %s (Status %d)\n", wsUrl, resp.StatusCode)
+
+			if isInsecure {
+				fmt.Printf("[!] WARNING: Insecure WebSocket (ws://) connection accepted!\n")
+			}
+
+			// Return the successful result
+			return &utils.ScanResult{
+				StatusCode: resp.StatusCode,
+				URL:        wsUrl,
+				Host:       domain,
+				Scheme:     scheme,
+				Success:    true,
+				Insecure:   isInsecure,
 			}
 		} else {
-			fmt.Printf("No 101, no bitches %s : %d\n", wsUrl, resp.StatusCode)
+			fmt.Printf("[-] WebSocket upgrade failed %s: Status %d\n", wsUrl, resp.StatusCode)
 		}
-
 	}
-	return true
+
+	// No scheme worked - return failure result
+	return &utils.ScanResult{
+		StatusCode: 0,
+		URL:        domain,
+		Host:       domain,
+		Scheme:     "none",
+		Success:    false,
+		Insecure:   false,
+	}
 }
 
 //
