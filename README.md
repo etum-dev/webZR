@@ -38,4 +38,8 @@ WebZR supports three ways to provide domains:
      echo "example.com" | webzr
      ```
 
-   
+___
+TODOs:
+- [ ] More vuln scans
+- [ ] Optimize speed
+

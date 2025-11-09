@@ -1,13 +1,14 @@
 package scan
 
 import (
+	"bufio"
+	"fmt"
+	"net/http"
+	"os"
+	"regexp"
 	"time"
 
 	"github.com/gorilla/websocket"
-	//"bytes"
-	"bufio"
-	"fmt"
-	"os"
 
 	"github.com/etum-dev/WebZR/utils"
 )
@@ -113,9 +114,7 @@ func SendConnRequest(domain string) *utils.ScanResult {
 		conn, resp, err := dialer.Dial(wsUrl, nil)
 
 		if err != nil {
-			// Connection failed - try next scheme
-			// Enable this line if verbose mode
-			//fmt.Printf("Connection failed %s: %v\n", wsUrl, err)
+
 			continue
 		}
 
@@ -165,6 +164,36 @@ func SendConnRequest(domain string) *utils.ScanResult {
 }
 
 //
+
+func FindMoreEndpoints() {
+	// Calls functions that look for wss in resp headers, javascript
+
+}
+func CSPSearch(rhttp string) (_ []string) {
+	// Check if http header has any wss domains
+	r, err := http.Head(rhttp)
+	if err != nil {
+		fmt.Println("HTTP Request failed: ", err)
+	}
+	csp := r.Header.Get("content-security-policy")
+	/*if err != nil {
+		fmt.Println("CSP Header check failed: ", err)
+	}*/
+
+	if err != nil {
+		fmt.Println("hatsune miku")
+	} else {
+		re := regexp.MustCompile(`ws{1,2}\:\/\/`)
+		match := re.MatchString(csp)
+		if match {
+			wsheader := re.FindAllString(csp, -1)
+			return wsheader
+		}
+
+	}
+	return []string{""}
+
+}
 
 func CorsITaket(url string, ownserver string) {
 	// Check if it validates origin'

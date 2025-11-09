@@ -4,6 +4,7 @@
 ?EIO=3&transport=websocket
 /?EIO=3&transport=websocket
 /&transport=websocket
+/socket.io/socket.io.js
 /stream
 /feed
 /block

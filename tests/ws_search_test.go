@@ -22,3 +22,7 @@ func TestScanEndpoint(t *testing.T) {
 	}
 
 }
+func TestCSPSearch(t *testing.T) {
+	csp := scan.CSPSearch("https://github.com")
+	fmt.Println(csp)
+}
