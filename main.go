@@ -26,7 +26,7 @@ func worker(id int, jobs <-chan string, results chan<- []utils.ScanResult, wg *s
 // processIn consumes optional file, args and/or stdin and scans domains concurrently
 func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 	// Channels for concurrent processing
-	jobs := make(chan string, 100)       // Buffer of 100 domains
+	jobs := make(chan string, 100) // Buffer of 100 domains
 	results := make(chan []utils.ScanResult, 100)
 	var wg sync.WaitGroup
 
@@ -113,6 +113,10 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 	}
 }
 func doScan(d string) []utils.ScanResult {
+	csp_endpoints := scan.CSPSearch(d)
+
+	fmt.Println(csp_endpoints)
+
 	endpoints := scan.ScanEndpoint(d)
 	subdomains := scan.ScanSubdomain(d)
 

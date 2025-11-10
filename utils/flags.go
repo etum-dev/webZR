@@ -13,6 +13,7 @@ type Flags struct {
 	Debug         bool   // -debug : enable debug
 	WebsocketAddr string // -ws : websocket server address (if "localhost" we will spin one up)
 	TestLocal     bool
+	LightMode     bool // only do CSPsearch, subdomain enum, and endpoint enum
 }
 
 func IsFile(path string) bool {

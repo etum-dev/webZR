@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -30,4 +31,25 @@ func CheckDomain(domain string) string {
 	} */
 
 	return domain
+}
+
+func AppendProto(inurl string) string {
+	// no protocol, assume https
+	if !strings.Contains(inurl, "://") {
+		return "https://" + inurl
+	}
+
+	parsedUrl, err := url.Parse(inurl)
+	if err != nil {
+		fmt.Println("parse error:", err)
+		return inurl
+	}
+
+	// Always use https for http/ws schemes
+	if parsedUrl.Scheme == "ws" || parsedUrl.Scheme == "wss" {
+		parsedUrl.Scheme = "https"
+	}
+
+	return parsedUrl.String()
+
 }

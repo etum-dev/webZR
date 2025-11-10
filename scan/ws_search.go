@@ -21,12 +21,12 @@ func CheckJS(url string) {
 // ScanEndpoint tries to connect to common WebSocket endpoints for a given domain
 // It reads endpoints from ws-endpoints.txt and attempts connections
 func ScanEndpoint(url string) utils.ScanResult {
-	fmt.Printf("\n[*] Scanning endpoints for: %s\n", url)
+	fmt.Printf("\n(｡´-ω･)ン? Scanning endpoints for: %s\n", url)
 
 	wordlist, err := os.Open("ws-endpoints.txt")
 	if err != nil {
-		fmt.Printf("[-] Cannot open ws-endpoints.txt: %v\n", err)
-		fmt.Println("[*] Skipping endpoint scan, trying base domain only...")
+		fmt.Printf("(>^<。)グスン Cannot open ws-endpoints.txt: %v\n", err)
+		fmt.Println("(。┰ω┰。) Skipping endpoint scan, trying base domain only...")
 
 		// Try just the base domain
 		result := SendConnRequest(url)
@@ -48,7 +48,7 @@ func ScanEndpoint(url string) utils.ScanResult {
 		endpoint := scanner.Text()
 		fullURL := url + endpoint
 
-		fmt.Printf("[*] Trying endpoint: %s\n", endpoint)
+		fmt.Printf("(人●´ω｀●) Trying endpoint: %s\n", endpoint)
 		result := SendConnRequest(fullURL)
 
 		// If we found a working endpoint, return it immediately
@@ -132,10 +132,10 @@ func SendConnRequest(domain string) *utils.ScanResult {
 		if resp.StatusCode == 101 {
 			isInsecure := (scheme == "ws")
 
-			fmt.Printf("[+] WebSocket connection established: %s (Status %d)\n", wsUrl, resp.StatusCode)
+			fmt.Printf("( ｡･_･｡)人(｡･_･｡ ) WebSocket connection established: %s (Status %d)\n", wsUrl, resp.StatusCode)
 
 			if isInsecure {
-				fmt.Printf("[!] WARNING: Insecure WebSocket (ws://) connection accepted!\n")
+				fmt.Printf("[!](・∀・)イイ!! WARNING: Insecure WebSocket (ws://) connection accepted!\n")
 			}
 
 			// Return the successful result
@@ -171,34 +171,49 @@ func FindMoreEndpoints() {
 }
 func CSPSearch(rhttp string) (_ []string) {
 	// Check if http header has any wss domains
-	r, err := http.Head(rhttp)
-	if err != nil {
-		fmt.Println("HTTP Request failed: ", err)
-	}
-	csp := r.Header.Get("content-security-policy")
-	/*if err != nil {
-		fmt.Println("CSP Header check failed: ", err)
-	}*/
+	// TODO: add protocol dynamically if not supplied cus this is really bloat. just really lazy atm
+	parsedurl := utils.AppendProto(rhttp)
 
+	resp, err := http.Get(parsedurl)
 	if err != nil {
-		fmt.Println("hatsune miku")
-	} else {
+		fmt.Println("Request failed: ", err)
+		return []string{""}
+	}
+	defer resp.Body.Close()
+	csp := resp.Header.Get("Content-Security-Policy")
 		re := regexp.MustCompile(`ws{1,2}\:\/\/`)
 		match := re.MatchString(csp)
 		if match {
 			wsheader := re.FindAllString(csp, -1)
 			return wsheader
 		}
-
-	}
 	return []string{""}
-
 }
 
-func CorsITaket(url string, ownserver string) {
-	// Check if it validates origin'
-	/* if (cors not validated) {
-		send request with own server value
-	}*/
+func CorsITaket(wsurl string /*, ownserver string*/) {
+	// Check if it validates origin
+	origins := []string{
+		"https://example.com", // invalid url
+		wsurl,                 // TODO: parse url, if ws(s), replace with http(s). utils.AppendProto
+	}
 
+	for _, or := range origins {
+		header := http.Header{}
+		header.Set("Origin", or)
+		r1 := websocket.DefaultDialer
+		r1.HandshakeTimeout = 5 * time.Second
+
+		conn, resp, err := r1.Dial(wsurl, header)
+		if err != nil {
+			if resp != nil {
+				fmt.Printf("Origin=%q -> REJECTED (http %d)\n", or, resp.StatusCode)
+			} else {
+				fmt.Printf("Origin=%q -> ERROR (no response): %v\n", or, err)
+			}
+			continue
+		}
+		fmt.Printf("ヽ(●´ｗ｀○)ﾉ Connection successful with Origin: %q", or)
+		conn.Close()
+		//TODO check if origin is not the same as wsurl, if so, flag
+	}
 }

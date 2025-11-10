@@ -1,0 +1,84 @@
+{
+  "results": [
+    {
+      "status": 0,
+      "url": "",
+      "host": "192.168.88.75:8888",
+      "scheme": "",
+      "success": false,
+      "insecure": false
+    },
+    {
+      "status": 555,
+      "url": "192.168.88.75:8888",
+      "host": "192.168.88.75:8888",
+      "scheme": "ws",
+      "success": true,
+      "insecure": false
+    },
+    {
+      "status": 101,
+      "url": "wss://echo.websocket.org/ws/v1",
+      "host": "echo.websocket.org/ws/v1",
+      "scheme": "wss",
+      "success": true,
+      "insecure": false
+    },
+    {
+      "status": 555,
+      "url": "echo.websocket.org",
+      "host": "echo.websocket.org",
+      "scheme": "ws",
+      "success": true,
+      "insecure": false
+    },
+    {
+      "status": 0,
+      "url": "",
+      "host": "github.com",
+      "scheme": "",
+      "success": false,
+      "insecure": false
+    },
+    {
+      "status": 555,
+      "url": "github.com",
+      "host": "github.com",
+      "scheme": "ws",
+      "success": true,
+      "insecure": false
+    },
+    {
+      "status": 0,
+      "url": "",
+      "host": "demos.kaazing.com",
+      "scheme": "",
+      "success": false,
+      "insecure": false
+    },
+    {
+      "status": 555,
+      "url": "demos.kaazing.com",
+      "host": "demos.kaazing.com",
+      "scheme": "ws",
+      "success": true,
+      "insecure": false
+    },
+    {
+      "status": 101,
+      "url": "wss://ws.postman-echo.com/socket.io/socket.io.js",
+      "host": "ws.postman-echo.com/socket.io/socket.io.js",
+      "scheme": "wss",
+      "success": true,
+      "insecure": false
+    },
+    {
+      "status": 555,
+      "url": "ws.postman-echo.com",
+      "host": "ws.postman-echo.com",
+      "scheme": "ws",
+      "success": true,
+      "insecure": false
+    }
+  ]
+}
