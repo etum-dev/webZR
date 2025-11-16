@@ -1,5 +1,6 @@
 chat
 ws
+wss
 websocket
 stream
 streamer
@@ -7,3 +8,4 @@ fstream
 ws-feed
 ws-feed-public
 alive
+a2.chat

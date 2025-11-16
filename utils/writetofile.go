@@ -20,6 +20,8 @@ type ScanOutput struct {
 	Results []ScanResult `json:"results"`
 }
 
+// TODO: Also log stuff found from CSP / JS.
+
 // writes scan results to a JSON file
 func WriteShit(filename string, results *ScanResult) error {
 
@@ -36,7 +38,7 @@ func WriteShit(filename string, results *ScanResult) error {
 		fmt.Println(filename, "file exists, continue?")
 		fmt.Scanln(&check)
 	}
-
+	// TODO: make timestamp filename
 	err = os.WriteFile(filename, jsonData, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)

@@ -9,34 +9,79 @@ import (
 // will handle different kind of urls supplied
 
 func CheckDomain(domain string) string {
-	fmt.Println("Checking: ", domain)
-	/*if strings.HasSuffix(domain, ".*") {
-		fmt.Println("Domain ends with .*, indicating wildcard TLD")
+	domain = strings.TrimSpace(domain)
+	fmt.Println("Checking:", domain)
 
-	} */
-	if strings.HasPrefix(domain, "*") {
-		// indicates we def want to do subdomain fuzz
-		domain = strings.Trim(domain, "*.")
-		fmt.Println("rem wildcard: ", domain)
-		//fixedDomain, err := url.Parse(domain)
-		/*if err != nil {
-			fmt.Println("Invalid domain: ", domain)
-		}*/
+	if domain == "" {
 		return domain
 	}
-	// check if any other issues:
-	/*fixedDomain, err := url.Parse(domain)
-	if err != nil {
-		fmt.Println("Invalid domain: ", domain)
-	} */
 
+	if strings.HasPrefix(domain, "*.") {
+		domain = strings.TrimPrefix(domain, "*.")
+		fmt.Println("rem wildcard:", domain)
+	} else if strings.HasPrefix(domain, "*") {
+		domain = strings.TrimPrefix(domain, "*")
+		domain = strings.TrimPrefix(domain, ".")
+		fmt.Println("rem wildcard:", domain)
+	}
+
+	domain = strings.TrimPrefix(domain, "//")
+
+	if strings.Contains(domain, "://") {
+		if parsed, err := url.Parse(domain); err == nil {
+			domain = rebuildDomain(parsed)
+		} else if idx := strings.Index(domain, "://"); idx != -1 {
+			domain = domain[idx+3:]
+		}
+	}
+
+	domain = strings.TrimLeft(domain, "/")
 	return domain
 }
 
+func rebuildDomain(u *url.URL) string {
+	host := u.Host
+	if host == "" {
+		host = u.Path
+	}
+
+	var builder strings.Builder
+	builder.WriteString(strings.Trim(host, "/"))
+
+	path := strings.Trim(u.Path, "/")
+	if host != "" {
+		path = strings.TrimPrefix(path, host)
+	}
+	if path != "" {
+		if !strings.HasPrefix(path, "/") {
+			builder.WriteString("/")
+		}
+		builder.WriteString(path)
+	}
+
+	if u.RawQuery != "" {
+		builder.WriteString("?")
+		builder.WriteString(u.RawQuery)
+	}
+
+	if u.Fragment != "" {
+		builder.WriteString("#")
+		builder.WriteString(u.Fragment)
+	}
+
+	return strings.Trim(builder.String(), "/")
+}
+
 func AppendProto(inurl string) string {
-	// no protocol, assume https
+	inurl = strings.TrimSpace(inurl)
+	if inurl == "" {
+		return ""
+	}
+
+	inurl = strings.TrimPrefix(inurl, "//")
+
 	if !strings.Contains(inurl, "://") {
-		return "https://" + inurl
+		inurl = "https://" + inurl
 	}
 
 	parsedUrl, err := url.Parse(inurl)
@@ -46,10 +91,30 @@ func AppendProto(inurl string) string {
 	}
 
 	// Always use https for http/ws schemes
-	if parsedUrl.Scheme == "ws" || parsedUrl.Scheme == "wss" {
+	switch parsedUrl.Scheme {
+	case "ws", "wss", "http":
 		parsedUrl.Scheme = "https"
 	}
 
 	return parsedUrl.String()
+}
 
+// ExtractHostname returns only the host:port portion of a domain or URL.
+func ExtractHostname(domain string) string {
+	withProto := AppendProto(domain)
+	if withProto == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(withProto)
+	if err != nil {
+		parts := strings.Split(domain, "/")
+		return strings.TrimSpace(parts[0])
+	}
+
+	if parsed.Host != "" {
+		return parsed.Host
+	}
+
+	return strings.Split(strings.Trim(parsed.Path, "/"), "/")[0]
 }

@@ -26,7 +26,7 @@ func worker(id int, jobs <-chan string, results chan<- []utils.ScanResult, wg *s
 // processIn consumes optional file, args and/or stdin and scans domains concurrently
 func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 	// Channels for concurrent processing
-	jobs := make(chan string, 100) // Buffer of 100 domains
+	jobs := make(chan string, 100)
 	results := make(chan []utils.ScanResult, 100)
 	var wg sync.WaitGroup
 
@@ -89,16 +89,9 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 		}
 	}
 
-	// Close jobs channel - signals workers to finish
 	close(jobs)
-
-	// Wait for all workers to complete
 	wg.Wait()
-
-	// Close results channel - signals collector to finish
 	close(results)
-
-	// Wait for collector to finish
 	<-done
 
 	// Write all results to JSON file
@@ -109,19 +102,24 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 			fmt.Fprintf(os.Stderr, "Failed to write results: %v\n", err)
 		}
 	} else {
-		fmt.Println("\n[-] No WebSocket connections found")
+		fmt.Println("\no(TヘTo) くぅ No WebSocket connections found")
 	}
 }
 func doScan(d string) []utils.ScanResult {
-	csp_endpoints := scan.CSPSearch(d)
-
-	fmt.Println(csp_endpoints)
+	cspEndpoints := scan.CSPSearch(d)
+	if len(cspEndpoints) > 0 {
+		fmt.Printf("[CSP] Potential WebSocket endpoints for %s:\n", d)
+		for _, endpoint := range cspEndpoints {
+			fmt.Printf("  - %s\n", endpoint)
+		}
+	}
 
 	endpoints := scan.ScanEndpoint(d)
 	subdomains := scan.ScanSubdomain(d)
 
 	// collect all results
-	results := []utils.ScanResult{endpoints, subdomains}
+	results := []utils.ScanResult{endpoints}
+	results = append(results, subdomains...)
 
 	return results
 }
@@ -154,7 +152,7 @@ func main() {
 		result := scan.SendConnRequest(d)
 
 		if result != nil && result.Success {
-			fmt.Printf("\n[SUCCESS] WebSocket connection details:\n")
+			fmt.Printf("\nヾ(o･∀･)ﾉ ﾀﾞｰ!![SUCCESS] WebSocket connection details:\n")
 			fmt.Printf("  URL: %s\n", result.URL)
 			fmt.Printf("  Scheme: %s\n", result.Scheme)
 			fmt.Printf("  Insecure: %v\n", result.Insecure)

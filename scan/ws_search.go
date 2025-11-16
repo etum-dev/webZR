@@ -1,11 +1,11 @@
 package scan
 
 import (
-	"bufio"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,74 +23,107 @@ func CheckJS(url string) {
 func ScanEndpoint(url string) utils.ScanResult {
 	fmt.Printf("\n(｡´-ω･)ン? Scanning endpoints for: %s\n", url)
 
-	wordlist, err := os.Open("ws-endpoints.txt")
-	if err != nil {
-		fmt.Printf("(>^<。)グスン Cannot open ws-endpoints.txt: %v\n", err)
-		fmt.Println("(。┰ω┰。) Skipping endpoint scan, trying base domain only...")
-
-		// Try just the base domain
-		result := SendConnRequest(url)
-		if result != nil {
+	endpoints, err := getEndpointWordlist()
+	if err != nil || len(endpoints) == 0 {
+		fmt.Printf("(>^<。)グスン Cannot load ws-endpoints.txt: %v\n", err)
+		fmt.Println("(。┰ω┰。) Skipping endpoint fuzz, trying base domain only...")
+		if result := SendConnRequest(strings.TrimRight(url, "/")); result != nil {
 			return *result
 		}
-
-		// Return empty result if nothing worked
 		return utils.ScanResult{
 			Host:    url,
 			Success: false,
 		}
 	}
-	defer wordlist.Close()
 
-	// Try each endpoint from the wordlist
-	scanner := bufio.NewScanner(wordlist)
-	for scanner.Scan() {
-		endpoint := scanner.Text()
-		fullURL := url + endpoint
+	base := strings.TrimRight(url, "/")
 
-		fmt.Printf("(人●´ω｀●) Trying endpoint: %s\n", endpoint)
+	for _, endpoint := range endpoints {
+		fullURL := joinEndpoint(base, endpoint)
 		result := SendConnRequest(fullURL)
-
-		// If we found a working endpoint, return it immediately
 		if result != nil && result.Success {
 			return *result
 		}
 	}
 
-	// No endpoints worked
+	if result := SendConnRequest(base); result != nil {
+		return *result
+	}
+
 	return utils.ScanResult{
 		Host:    url,
 		Success: false,
 	}
 }
 
-func ScanSubdomain(url string) utils.ScanResult {
-	retryAttempts := 3
-	attempts := 0
+func joinEndpoint(base, endpoint string) string {
+	base = strings.TrimRight(base, "/")
+	endpoint = strings.TrimSpace(endpoint)
 
-	subdomainFile, err := os.Open("ws-subdomain.txt")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open file for subdomains: %v\n", err)
-	} else {
-		defer subdomainFile.Close()
-		subdomainSc := bufio.NewScanner(subdomainFile)
-		for subdomainSc.Scan() {
-			// net.LookupNS
-			// if (something fucked in request){ attempts +1 }
-			if attempts == retryAttempts {
-				fmt.Println("fuck off m8")
-			}
+	if endpoint == "" {
+		return base
+	}
+
+	if strings.HasPrefix(endpoint, "/") || strings.HasPrefix(endpoint, "?") || strings.HasPrefix(endpoint, "&") {
+		return base + endpoint
+	}
+
+	return base + "/" + endpoint
+}
+
+const subdomainConcurrency = 10
+
+func ScanSubdomain(url string) []utils.ScanResult {
+	subdomains, err := getSubdomainWordlist()
+	if err != nil || len(subdomains) == 0 {
+		fmt.Printf("failed to load subdomain list: %v\n", err)
+		return nil
+	}
+
+	host := utils.ExtractHostname(url)
+	if host == "" {
+		fmt.Printf("could not derive hostname from %q, skipping subdomain scan\n", url)
+		return nil
+	}
+
+	resultsChan := make(chan utils.ScanResult, len(subdomains))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, subdomainConcurrency)
+
+	for _, subdomain := range subdomains {
+		subdomain := strings.TrimSpace(subdomain)
+		if subdomain == "" {
+			continue
 		}
+
+		wg.Add(1)
+		go func(sd string) {
+			defer wg.Done()
+			fullDomain := fmt.Sprintf("%s.%s", sd, host)
+			fmt.Println("trying", fullDomain)
+
+			sem <- struct{}{}
+			result := SendConnRequest(fullDomain)
+			<-sem
+
+			if result != nil && result.Success {
+				resultsChan <- *result
+				fmt.Println("(((((っ･ω･)っ ﾌﾞｰﾝ Websocket subdomain found:", fullDomain)
+			}
+		}(subdomain)
 	}
-	placeholder := &utils.ScanResult{
-		StatusCode: 555,
-		URL:        url,
-		Host:       url,
-		Scheme:     "ws",
-		Success:    true,
-		Insecure:   false,
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	var results []utils.ScanResult
+	for res := range resultsChan {
+		results = append(results, res)
 	}
-	return *placeholder
+
+	return results
 }
 
 // SendConnRequest attempts to establish WebSocket connections using both wss:// and ws://
@@ -104,7 +137,6 @@ func SendConnRequest(domain string) *utils.ScanResult {
 	schemes := []string{"wss", "ws"} // Try secure first, then insecure
 
 	for _, scheme := range schemes {
-		// Build the full WebSocket URL
 		wsUrl := scheme + "://" + domain
 
 		dialer := websocket.Dialer{
@@ -112,9 +144,7 @@ func SendConnRequest(domain string) *utils.ScanResult {
 		}
 
 		conn, resp, err := dialer.Dial(wsUrl, nil)
-
 		if err != nil {
-
 			continue
 		}
 
@@ -123,13 +153,15 @@ func SendConnRequest(domain string) *utils.ScanResult {
 			continue
 		}
 
-		// Close connection if established
-		if conn != nil {
-			defer conn.Close()
+		if resp.Body != nil {
+			resp.Body.Close()
 		}
 
-		// HTTP 101 = "Switching Protocols" = WebSocket handshake successful
-		if resp.StatusCode == 101 {
+		if conn != nil {
+			conn.Close()
+		}
+
+		if resp.StatusCode == http.StatusSwitchingProtocols {
 			isInsecure := (scheme == "ws")
 
 			fmt.Printf("( ｡･_･｡)人(｡･_･｡ ) WebSocket connection established: %s (Status %d)\n", wsUrl, resp.StatusCode)
@@ -138,7 +170,6 @@ func SendConnRequest(domain string) *utils.ScanResult {
 				fmt.Printf("[!](・∀・)イイ!! WARNING: Insecure WebSocket (ws://) connection accepted!\n")
 			}
 
-			// Return the successful result
 			return &utils.ScanResult{
 				StatusCode: resp.StatusCode,
 				URL:        wsUrl,
@@ -147,9 +178,9 @@ func SendConnRequest(domain string) *utils.ScanResult {
 				Success:    true,
 				Insecure:   isInsecure,
 			}
-		} else {
-			fmt.Printf("[-] WebSocket upgrade failed %s: Status %d\n", wsUrl, resp.StatusCode)
 		}
+
+		fmt.Printf("[-] WebSocket upgrade failed %s: Status %d\n", wsUrl, resp.StatusCode)
 	}
 
 	// No scheme worked - return failure result
@@ -169,25 +200,50 @@ func FindMoreEndpoints() {
 	// Calls functions that look for wss in resp headers, javascript
 
 }
-func CSPSearch(rhttp string) (_ []string) {
-	// Check if http header has any wss domains
-	// TODO: add protocol dynamically if not supplied cus this is really bloat. just really lazy atm
-	parsedurl := utils.AppendProto(rhttp)
 
-	resp, err := http.Get(parsedurl)
+var (
+	cspHTTPClient = &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	cspRegex = regexp.MustCompile(`(ws{1,2}://[^\s;"',]+)`)
+)
+
+func CSPSearch(rhttp string) []string {
+	parsedurl := utils.AppendProto(rhttp)
+	if parsedurl == "" {
+		return nil
+	}
+
+	resp, err := cspHTTPClient.Get(parsedurl)
 	if err != nil {
-		fmt.Println("Request failed: ", err)
-		return []string{""}
+		fmt.Println("Request failed:", err)
+		return nil
 	}
 	defer resp.Body.Close()
+
 	csp := resp.Header.Get("Content-Security-Policy")
-		re := regexp.MustCompile(`ws{1,2}\:\/\/`)
-		match := re.MatchString(csp)
-		if match {
-			wsheader := re.FindAllString(csp, -1)
-			return wsheader
+	if csp == "" {
+		return nil
+	}
+
+	matches := cspRegex.FindAllString(csp, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(matches))
+	candidates := make([]string, 0, len(matches))
+
+	for _, match := range matches {
+		clean := strings.TrimRight(match, ",'\";")
+		if _, ok := seen[clean]; ok {
+			continue
 		}
-	return []string{""}
+		seen[clean] = struct{}{}
+		candidates = append(candidates, clean)
+	}
+
+	return candidates
 }
 
 func CorsITaket(wsurl string /*, ownserver string*/) {
@@ -213,7 +269,7 @@ func CorsITaket(wsurl string /*, ownserver string*/) {
 			continue
 		}
 		fmt.Printf("ヽ(●´ｗ｀○)ﾉ Connection successful with Origin: %q", or)
-		conn.Close()
+		defer conn.Close()
 		//TODO check if origin is not the same as wsurl, if so, flag
 	}
 }
