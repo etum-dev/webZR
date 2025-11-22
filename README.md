@@ -40,6 +40,7 @@ WebZR supports three ways to provide domains:
 
 ___
 TODOs:
+- [ ] Fix the insecure check
 - [ ] More vuln scans
 - [ ] Optimize speed
 

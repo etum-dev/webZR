@@ -1,6 +1,8 @@
 echo.websocket.org
-ws.postman-echo.com
+notion.so
+192.168.88.67:3000
+websocket.org
+postman-echo.com
 192.168.88.75:8888
 demos.kaazing.com
 github.com
-smaero.jp

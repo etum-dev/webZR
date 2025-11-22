@@ -80,8 +80,9 @@ func AppendProto(inurl string) string {
 
 	inurl = strings.TrimPrefix(inurl, "//")
 
+	// assuming protocol here, unsure which is best
 	if !strings.Contains(inurl, "://") {
-		inurl = "https://" + inurl
+		inurl = "wss://" + inurl
 	}
 
 	parsedUrl, err := url.Parse(inurl)

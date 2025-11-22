@@ -107,6 +107,7 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 }
 func doScan(d string) []utils.ScanResult {
 	cspEndpoints := scan.CSPSearch(d)
+	// TODO: Add into scan results, add for scanwith ScanSubdomain
 	if len(cspEndpoints) > 0 {
 		fmt.Printf("[CSP] Potential WebSocket endpoints for %s:\n", d)
 		for _, endpoint := range cspEndpoints {

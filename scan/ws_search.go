@@ -86,9 +86,27 @@ func ScanSubdomain(url string) []utils.ScanResult {
 		return nil
 	}
 
+	endpoints, endpointErr := getEndpointWordlist()
+	if endpointErr != nil {
+		fmt.Printf("failed to load endpoint list, falling back to root path only: %v\n", endpointErr)
+	}
+	targetEndpoints := append(make([]string, 0, len(endpoints)+1), endpoints...)
+	targetEndpoints = append(targetEndpoints, "") // always probe bare host
+
 	resultsChan := make(chan utils.ScanResult, len(subdomains))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, subdomainConcurrency)
+
+	probeSubdomain := func(domain string) *utils.ScanResult {
+		trimmed := strings.TrimRight(domain, "/")
+		for _, endpoint := range targetEndpoints {
+			fullTarget := joinEndpoint(trimmed, endpoint)
+			if res := SendConnRequest(fullTarget); res != nil && res.Success {
+				return res
+			}
+		}
+		return nil
+	}
 
 	for _, subdomain := range subdomains {
 		subdomain := strings.TrimSpace(subdomain)
@@ -100,15 +118,15 @@ func ScanSubdomain(url string) []utils.ScanResult {
 		go func(sd string) {
 			defer wg.Done()
 			fullDomain := fmt.Sprintf("%s.%s", sd, host)
-			fmt.Println("trying", fullDomain)
+			//fmt.Println("trying", fullDomain)
 
 			sem <- struct{}{}
-			result := SendConnRequest(fullDomain)
+			result := probeSubdomain(fullDomain)
 			<-sem
 
 			if result != nil && result.Success {
 				resultsChan <- *result
-				fmt.Println("(((((っ･ω･)っ ﾌﾞｰﾝ Websocket subdomain found:", fullDomain)
+				fmt.Println("(((((っ･ω･)っ ﾌﾞｰﾝ Websocket subdomain found:", result.URL)
 			}
 		}(subdomain)
 	}
