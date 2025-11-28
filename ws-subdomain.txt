@@ -1,6 +1,7 @@
 chat
 ws
 wss
+client.relay.crisp.chat
 websocket
 stream
 streamer
@@ -9,3 +10,7 @@ ws-feed
 ws-feed-public
 alive
 a2.chat
+echo
+msg
+msgstore-001
+app

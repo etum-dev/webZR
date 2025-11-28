@@ -16,6 +16,10 @@ type ScanResult struct {
 	Insecure   bool   `json:"insecure"` // true if ws://
 }
 
+type VulncheckResult struct {
+	
+}
+
 type ScanOutput struct {
 	Results []ScanResult `json:"results"`
 }

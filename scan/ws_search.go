@@ -1,22 +1,22 @@
 package scan
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
-
+	"github.com/chromedp/cdproto/dom"
+	"github.com/chromedp/chromedp"
 	"github.com/etum-dev/WebZR/utils"
+	"github.com/gorilla/websocket"
 )
 
-func CheckJS(url string) {
-	// Parse sites js to find if it has ws estab.
-	// Should be delegated to tools like katana and idk rg
-}
+var possibleWs []string
 
 // ScanEndpoint tries to connect to common WebSocket endpoints for a given domain
 // It reads endpoints from ws-endpoints.txt and attempts connections
@@ -214,8 +214,32 @@ func SendConnRequest(domain string) *utils.ScanResult {
 
 //
 
-func FindMoreEndpoints() {
-	// Calls functions that look for wss in resp headers, javascript
+// Reads JS discovered on page and extracts wss:// urls
+func JSCrawler(url string) error {
+	var html string
+	// super basic, can 1000% be improved.
+	ctx, cancel := chromedp.NewContext(
+		context.Background(),
+	)
+	defer cancel()
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(url),
+		chromedp.Sleep(2000*time.Millisecond),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			rootNode, err := dom.GetDocument().Do(ctx)
+			if err != nil {
+				return err
+			}
+			html, err = dom.GetOuterHTML().WithNodeID(rootNode.NodeID).Do(ctx)
+			return err
+		}),
+	) // asså usch
+	if err != nil {
+		log.Fatal("Error automation logic: ", err)
+	}
+	fmt.Println(html)
+	return nil
 
 }
 
@@ -262,32 +286,4 @@ func CSPSearch(rhttp string) []string {
 	}
 
 	return candidates
-}
-
-func CorsITaket(wsurl string /*, ownserver string*/) {
-	// Check if it validates origin
-	origins := []string{
-		"https://example.com", // invalid url
-		wsurl,                 // TODO: parse url, if ws(s), replace with http(s). utils.AppendProto
-	}
-
-	for _, or := range origins {
-		header := http.Header{}
-		header.Set("Origin", or)
-		r1 := websocket.DefaultDialer
-		r1.HandshakeTimeout = 5 * time.Second
-
-		conn, resp, err := r1.Dial(wsurl, header)
-		if err != nil {
-			if resp != nil {
-				fmt.Printf("Origin=%q -> REJECTED (http %d)\n", or, resp.StatusCode)
-			} else {
-				fmt.Printf("Origin=%q -> ERROR (no response): %v\n", or, err)
-			}
-			continue
-		}
-		fmt.Printf("ヽ(●´ｗ｀○)ﾉ Connection successful with Origin: %q", or)
-		defer conn.Close()
-		//TODO check if origin is not the same as wsurl, if so, flag
-	}
 }

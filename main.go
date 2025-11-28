@@ -26,6 +26,7 @@ func worker(id int, jobs <-chan string, results chan<- []utils.ScanResult, wg *s
 // processIn consumes optional file, args and/or stdin and scans domains concurrently
 func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 	// Channels for concurrent processing
+	// TODO: make buffer sizes configurable or auto-tune based on worker count and input volume.
 	jobs := make(chan string, 100)
 	results := make(chan []utils.ScanResult, 100)
 	var wg sync.WaitGroup
@@ -47,7 +48,8 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 		}
 		done <- true
 	}()
-
+	// TODO: guard this collector with context cancellation + progress logging for long scans.
+	// https://www.concurrency.rocks/
 	// Send jobs to workers
 	// Process positional args first (if any)
 	if len(args) > 0 {
@@ -105,7 +107,11 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 		fmt.Println("\no(TヘTo) くぅ No WebSocket connections found")
 	}
 }
+
 func doScan(d string) []utils.ScanResult {
+	// TODO: return richer telemetry (latency, error info)
+	// TODO: finegrain flags to select type of scans
+	// TODO: Stream the output instead of writing to output when everything is done.
 	cspEndpoints := scan.CSPSearch(d)
 	// TODO: Add into scan results, add for scanwith ScanSubdomain
 	if len(cspEndpoints) > 0 {
@@ -114,13 +120,16 @@ func doScan(d string) []utils.ScanResult {
 			fmt.Printf("  - %s\n", endpoint)
 		}
 	}
+	jsEndpoints := scan.JSCrawler(d)
 
 	endpoints := scan.ScanEndpoint(d)
 	subdomains := scan.ScanSubdomain(d)
 
 	// collect all results
 	results := []utils.ScanResult{endpoints}
+	results = append(results, cspEndpoints...)
 	results = append(results, subdomains...)
+	
 
 	return results
 }
