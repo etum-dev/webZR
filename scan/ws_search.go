@@ -22,7 +22,7 @@ var possibleWs []string
 // It reads endpoints from ws-endpoints.txt and attempts connections
 func ScanEndpoint(url string) utils.ScanResult {
 	fmt.Printf("\n(｡´-ω･)ン? Scanning endpoints for: %s\n", url)
-
+	// todo: make more verbose with a -v switch. Show the actual request/responses.
 	endpoints, err := getEndpointWordlist()
 	if err != nil || len(endpoints) == 0 {
 		fmt.Printf("(>^<。)グスン Cannot load ws-endpoints.txt: %v\n", err)
@@ -238,7 +238,16 @@ func JSCrawler(url string) error {
 	if err != nil {
 		log.Fatal("Error automation logic: ", err)
 	}
+
 	fmt.Println(html)
+
+	// Parse the HTML and extract my ws urls
+	ws_proto_regex, err := regexp.Compile(`ws(s?):\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?`)
+	if err != nil {
+		fmt.Println("Regex search failed -> ", err)
+
+	}
+	fmt.Println(ws_proto_regex)
 	return nil
 
 }

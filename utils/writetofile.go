@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // https://github.com/ffuf/ffuf/blob/57da720af7d1b66066cbbde685b49948f886b29c/pkg/output/stdout.go
@@ -17,7 +18,6 @@ type ScanResult struct {
 }
 
 type VulncheckResult struct {
-	
 }
 
 type ScanOutput struct {
@@ -72,4 +72,101 @@ func WriteMultipleResults(filename string, results []ScanResult) error {
 	fmt.Printf("[+] %d results written to %s\n", len(results), filename)
 
 	return nil
+}
+
+// StreamResults incrementally writes results from a channel to disk and returns
+// a channel that reports the total number of processed results.
+func StreamResults(filename string, input <-chan []ScanResult) <-chan int {
+	done := make(chan int, 1)
+
+	go func() {
+		var (
+			resultFile     *os.File
+			streamDisabled bool
+			firstEntry     = true
+			written        int
+			total          int
+			prefix         string
+			suffix         string
+		)
+
+		defer func() {
+			if resultFile != nil && !streamDisabled {
+				fmt.Fprintf(resultFile, "\n%s\n", suffix)
+				resultFile.Close()
+				if written > 0 {
+					fmt.Printf("[+] %d results written to %s\n", written, filename)
+				} else {
+					os.Remove(filename)
+				}
+			}
+			done <- total
+		}()
+
+		for scanResults := range input {
+			for _, res := range scanResults {
+				total++
+				if streamDisabled {
+					continue
+				}
+
+				if resultFile == nil {
+					file, err := os.Create(filename)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "failed to create %s: %v\n", filename, err)
+						streamDisabled = true
+						continue
+					}
+					resultFile = file
+					prefix, suffix = scanOutputDelimiters()
+					fmt.Fprint(resultFile, prefix)
+				}
+
+				data, err := json.Marshal(res)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "failed to marshal result: %v\n", err)
+					continue
+				}
+
+				if firstEntry {
+					fmt.Fprint(resultFile, "\n")
+				} else {
+					fmt.Fprint(resultFile, ",\n")
+				}
+
+				if _, err := resultFile.Write(data); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to write result: %v\n", err)
+					resultFile.Close()
+					os.Remove(filename)
+					streamDisabled = true
+					resultFile = nil
+					continue
+				}
+
+				firstEntry = false
+				written++
+			}
+		}
+	}()
+
+	return done
+}
+
+func scanOutputDelimiters() (string, string) {
+	empty := ScanOutput{Results: []ScanResult{}}
+	data, err := json.Marshal(empty)
+	if err != nil {
+		return "{\"results\":[", "]}"
+	}
+
+	output := string(data)
+	placeholder := "[]"
+	idx := strings.Index(output, placeholder)
+	if idx == -1 {
+		return "{\"results\":[", "]}"
+	}
+
+	prefix := output[:idx+1]
+	suffix := output[idx+1:]
+	return prefix, suffix
 }

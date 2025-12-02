@@ -38,16 +38,9 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 		go worker(i, jobs, results, &wg)
 	}
 
-	// Goroutine to collect all results
-	allResults := []utils.ScanResult{}
-	done := make(chan bool)
-
-	go func() {
-		for scanResults := range results {
-			allResults = append(allResults, scanResults...)
-		}
-		done <- true
-	}()
+	// Stream results as they arrive using utility helper
+	outputFile := "scan_results.json"
+	done := utils.StreamResults(outputFile, results)
 	// TODO: guard this collector with context cancellation + progress logging for long scans.
 	// https://www.concurrency.rocks/
 	// Send jobs to workers
@@ -94,15 +87,10 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 	close(jobs)
 	wg.Wait()
 	close(results)
-	<-done
+	totalResults := <-done
 
-	// Write all results to JSON file
-	if len(allResults) > 0 {
-		outputFile := "scan_results.json"
-		fmt.Printf("\n[*] Scan complete! Found %d results\n", len(allResults))
-		if err := utils.WriteMultipleResults(outputFile, allResults); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write results: %v\n", err)
-		}
+	if totalResults > 0 {
+		fmt.Printf("\n[*] Scan complete! Found %d results\n", totalResults)
 	} else {
 		fmt.Println("\no(TヘTo) くぅ No WebSocket connections found")
 	}
@@ -111,36 +99,44 @@ func processIn(inputFile string, args []string, hasStdin bool, numWorkers int) {
 func doScan(d string) []utils.ScanResult {
 	// TODO: return richer telemetry (latency, error info)
 	// TODO: finegrain flags to select type of scans
-	// TODO: Stream the output instead of writing to output when everything is done.
 	cspEndpoints := scan.CSPSearch(d)
-	// TODO: Add into scan results, add for scanwith ScanSubdomain
+
+	// Test CSP endpoints and convert to ScanResults
+	var cspResults []utils.ScanResult
 	if len(cspEndpoints) > 0 {
-		fmt.Printf("[CSP] Potential WebSocket endpoints for %s:\n", d)
+		fmt.Printf("[CSP] Testing %d potential WebSocket endpoints for %s:\n", len(cspEndpoints), d)
 		for _, endpoint := range cspEndpoints {
-			fmt.Printf("  - %s\n", endpoint)
+			fmt.Printf("  - Testing %s\n", endpoint)
+			// Test if the endpoint actually responds to WebSocket requests
+			result := scan.SendConnRequest(endpoint)
+			if result != nil && result.Success {
+				cspResults = append(cspResults, *result)
+				fmt.Printf(" !! CSP endpoint confirmed: %s\n", endpoint)
+			}
 		}
 	}
-	jsEndpoints := scan.JSCrawler(d)
+	//jsEndpoints := scan.JSCrawler(d)
 
 	endpoints := scan.ScanEndpoint(d)
 	subdomains := scan.ScanSubdomain(d)
 
 	// collect all results
 	results := []utils.ScanResult{endpoints}
-	results = append(results, cspEndpoints...)
+	results = append(results, cspResults...)
 	results = append(results, subdomains...)
-	
 
 	return results
 }
 
 func main() {
 	// flags
+	// todo: Make more advanced flags (i believe via viper will make it cleaner.)
 	isTest := flag.Bool("test", false, "Use the local test server")
 	fuzzOpt := flag.Int("fuzz", 0, "Fuzzing option. 1 for basic, 2 for custom header, 3 for mutation")
 	fileOpt := flag.String("file", "", "Path to input file (optional)")
 	singleDomain := flag.String("domain", "", "Single domain")
 	workers := flag.Int("workers", 5, "Number of concurrent workers (default: 5)")
+	//verboseMode := flag.Bool("verbose", false, "Verboserer output")
 
 	flag.Parse()
 
@@ -176,7 +172,7 @@ func main() {
 	}
 
 	if *isTest {
-		basicfuzz.ServeWs()
+		//basicfuzz.ServeWs()
 	}
 
 	switch *fuzzOpt {
