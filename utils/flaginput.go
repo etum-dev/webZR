@@ -8,12 +8,10 @@ import (
 
 type Flags struct {
 	DomainInput   string // -d : can be a single domain or path to a domain list file
-	FuzzType      string // -fuzz : "basic", "custom", "mutation", etc.
+	FuzzType      string // -fuzz : "basic", "custom", "mutation", etc. wip
 	WordlistFile  string // -w : wordlist file
 	Debug         bool   // -debug : enable debug
-	WebsocketAddr string // -ws : websocket server address (if "localhost" we will spin one up)
-	TestLocal     bool
-	LightMode     bool // only do CSPsearch, subdomain enum, and endpoint enum
+	Mode     string  
 }
 
 func IsFile(path string) bool {
@@ -39,9 +37,10 @@ func FlagParse() *Flags {
 	flag.StringVar(&f.DomainInput, "d", "", "Single domain or path to domain list file")
 	flag.StringVar(&f.FuzzType, "fuzz", "", "Fuzzing type: basic, custom, mutation")
 	flag.StringVar(&f.WordlistFile, "w", "", "Path to wordlist file")
+	flag.StringVar(&f.Mode, "m", "", "Mode")
 	flag.BoolVar(&f.Debug, "debug", false, "Enable debug output")
-	flag.StringVar(&f.WebsocketAddr, "ws", "", "WebSocket server address")
-	flag.BoolVar(&f.TestLocal, "test", false, "Use local test server")
+
+	
 
 	flag.Parse()
 
