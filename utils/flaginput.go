@@ -7,11 +7,12 @@ import (
 )
 
 type Flags struct {
-	DomainInput   string // -d : can be a single domain or path to a domain list file
-	FuzzType      string // -fuzz : "basic", "custom", "mutation", etc. wip
-	WordlistFile  string // -w : wordlist file
-	Debug         bool   // -debug : enable debug
-	Mode     string  
+	DomainInput  string // -d : can be a single domain or path to a domain list file
+	FuzzType     string // -fuzz : "lookup", "aggressive (all tests)"
+	WordlistFile string // -w : wordlist file
+	Debug        bool   // -debug : enable debug
+	Verbose      bool   // -v : verbose output
+	Mode         string
 }
 
 func IsFile(path string) bool {
@@ -27,7 +28,7 @@ func IsFile(path string) bool {
 
 func hasStdin() bool {
 	if fi, err := os.Stdin.Stat(); err == nil {
-		return (fi.Mode() & os.ModeCharDevice) == 0
+		return (fi.Mode() & os.ModeCharDevice) == 0 // TODO:  Unix specific - but nobody cares about windows tbh
 	}
 	return false
 }
@@ -35,12 +36,11 @@ func hasStdin() bool {
 func FlagParse() *Flags {
 	f := &Flags{}
 	flag.StringVar(&f.DomainInput, "d", "", "Single domain or path to domain list file")
-	flag.StringVar(&f.FuzzType, "fuzz", "", "Fuzzing type: basic, custom, mutation")
+	flag.StringVar(&f.FuzzType, "fuzz", "", "Fuzzing type: basic, aggressive. Basic only tries to find WS on the domain. Aggressive should be used on already determined WS hosts.")
 	flag.StringVar(&f.WordlistFile, "w", "", "Path to wordlist file")
 	flag.StringVar(&f.Mode, "m", "", "Mode")
 	flag.BoolVar(&f.Debug, "debug", false, "Enable debug output")
-
-	
+	flag.BoolVar(&f.Verbose, "v", false, "Enable verbose output")
 
 	flag.Parse()
 

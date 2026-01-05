@@ -1,0 +1,7 @@
+./checker.go
+./flaginput.go
+./job.go
+./parser.go
+./writetofile.go
+./checker_test.go
+./writetofile_test.go

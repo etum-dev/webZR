@@ -4,12 +4,18 @@ please dont use this lol
 
 
 Websocket testing framework i built for ... reasons i forgot
+It is made for identifying if a target site is using websockets. 
+Gradually, it will also hold some quick n' easy vuln checks.
+It was primarily built as a way to identify websockets at scale for research.
 
 
 ### Identification methodologies
-Simple dir and sub fuzz
-TODO: Javascript parsing
-TODO: CSP Headers
+1. Javascript parsing
+2. CSP Headers
+3. (Kind of useless, not run by default) Simple dir and sub fuzz
+4. Shodan lookup
+
+
 
 ### Options     
 
@@ -22,9 +28,9 @@ TODO: CSP Headers
 
 WebZR supports three ways to provide domains:
       
-  1. **File input**: Use `-file` flag
+  1. **File input**: Use `-d` flag
      ```bash
-     webzr -file domains.txt
+     webzr -d domains.txt
      ```
   
   2. **Command-line arguments**: Pass domains directly
@@ -39,8 +45,8 @@ WebZR supports three ways to provide domains:
      ```
 
 ___
-TODOs:
-- [ ] Fix the insecure check
-- [ ] More vuln scans
-- [ ] Optimize speed
+ROADMAP:
+[ ] Add Shodan Enumeration
+[ ] Add a config parser (see utils/IDEA.md)
+
 

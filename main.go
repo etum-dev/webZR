@@ -2,92 +2,142 @@ package main
 
 import (
 	"bufio"
-
+	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/etum-dev/WebZR/scan"
 	"github.com/etum-dev/WebZR/utils"
 )
 
-// Optional file, args and/or stdin and scans domains concurrently
-func processIn(inputFile string, args []string, hasStdin bool) {
-	outputFile := "scan_results.json"
-	// TODO: guard this collector with context cancellation + progress logging for long scans.
+const outputFile = "scan_results.json"
 
-	if len(args) > 0 {
-		for _, a := range args {
-			domain := utils.CheckDomain(a)
-			flags := utils.FlagParse()
+// scanJob is the unit of work for each worker.
+func scanJob(job utils.Job) utils.JobResult {
+	domain := utils.CheckDomain(job.Domain)
+	if domain == "" {
+		return utils.JobResult{Job: job, Err: fmt.Errorf("empty domain")}
+	}
+
+	var results []utils.ScanResult
+
+	// Run scans based on mode/flags
+	mode := job.Flags.Mode
+	if mode == "" {
+		mode = "basic" // default
+	}
+
+	// Always try CSP first (fast, no brute force)
+	if cspResults := scan.ScanCSP(domain); len(cspResults) > 0 {
+		results = append(results, cspResults...)
+	}
+
+	// Endpoint scanning (basic mode)
+	if mode == "basic" || mode == "aggressive" {
+		if epResults := scan.ScanEndpoint(domain); len(epResults) > 0 {
+			results = append(results, epResults...)
 		}
 	}
 
-	// Process file input
-	if inputFile != "" {
-		f, err := os.Open(inputFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to open file %s: %v\n", inputFile, err)
-		} else {
-			defer f.Close()
-			sc := bufio.NewScanner(f)
-
-			for sc.Scan() {
-				//domain := utils.CheckDomain(sc.Text())
-				fmt.Println(utils.CheckDomain(sc.Text()))
-				// jobs <- domain
-			}
-			if err := sc.Err(); err != nil {
-				fmt.Fprintf(os.Stderr, "error reading file %s: %v\n", inputFile, err)
-			}
+	// Subdomain scanning (aggressive mode only)
+	if mode == "aggressive" {
+		if subResults := scan.ScanSubdomain(domain); len(subResults) > 0 {
+			results = append(results, subResults...)
 		}
 	}
-	// Process piped stdin if present
-	if hasStdin {
-		sc := bufio.NewScanner(os.Stdin)
-		for sc.Scan() {
-			domain := utils.CheckDomain(sc.Text())
-			// add to wg
-			fmt.Println(domain)
-		}
-		if err := sc.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "error reading stdin: %v\n", err)
-		}
-	}
-	/*
-		if totalResults > 0 {
-			fmt.Printf("\n[*] Scan complete! Found %d results\n", totalResults)
-		} else {
 
-			fmt.Println("\no(TヘTo) くぅ No WebSocket connections found")
-		}
-	*/
+	return utils.JobResult{
+		Job:     job,
+		Results: results,
+	}
 }
 
-func doScan(d string, flags string) /*[]utils.ScanResult*/ {
-	// TODO: return richer telemetry (latency, error info)
-	// TODO: finegrain flags to select type of scans
-	cspEndpoints := scan.CSPSearch(d)
+// pushes domains from flags, args, and stdin into workers its just like palworld fr
+func enqueueInputs(flags *utils.Flags, extraArgs []string, pool *utils.WorkerPool) error {
+	var firstErr error
 
-	// Test CSP endpoints and convert to ScanResults
-	var cspResults []utils.ScanResult
-	if len(cspEndpoints) > 0 {
-		fmt.Printf("[CSP] Testing %d potential WebSocket endpoints for %s:\n", len(cspEndpoints), d)
-		for _, endpoint := range cspEndpoints {
-			fmt.Printf("  - Testing %s\n", endpoint)
-			// Test if the endpoint actually responds to WebSocket requests
-			result := scan.SendConnRequest(endpoint)
-			if result != nil && result.Success {
-				cspResults = append(cspResults, *result)
-				fmt.Printf(" !! CSP endpoint confirmed: %s\n", endpoint)
+	enqueue := func(domain string) {
+		pool.Submit(utils.Job{Domain: domain, Flags: flags})
+	}
+
+	if flags.DomainInput != "" {
+		if utils.IsFile(flags.DomainInput) {
+			file, err := os.Open(flags.DomainInput)
+			if err != nil {
+				return err
 			}
+			defer file.Close()
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				enqueue(scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				firstErr = err
+			}
+		} else {
+			enqueue(flags.DomainInput)
 		}
 	}
+
+	for _, arg := range extraArgs {
+		enqueue(arg)
+	}
+
+	if stdinHasData() {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			enqueue(scanner.Text())
+		}
+		if err := scanner.Err(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	return firstErr
+}
+
+func stdinHasData() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) == 0
 }
 
 func main() {
 	flags := utils.FlagParse()
-	if flags != nil {
-		fmt.Println("pizza")
+	scan.SetVerbose(flags.Verbose)
+
+	workerCount := runtime.NumCPU()
+	if workerCount < 2 {
+		workerCount = 2
 	}
 
+	pool := utils.NewWorkerPool(workerCount, workerCount*4, scanJob)
+
+	resultBatches := make(chan []utils.ScanResult, workerCount)
+	writerDone := utils.StreamResults(outputFile, resultBatches)
+
+	go func() {
+		for res := range pool.Results() {
+			if res.Err != nil {
+				fmt.Fprintf(os.Stderr, "scan error for %s: %v\n", res.Job.Domain, res.Err)
+				continue
+			}
+			if len(res.Results) > 0 {
+				resultBatches <- res.Results
+			}
+		}
+		close(resultBatches)
+	}()
+
+	if err := enqueueInputs(flags, flag.Args(), pool); err != nil {
+		fmt.Fprintf(os.Stderr, "input warning: %v\n", err)
+	}
+
+	pool.Close()
+	total := <-writerDone
+	fmt.Printf("[*] Scan complete. %d result(s) written to %s\n", total, outputFile)
 }

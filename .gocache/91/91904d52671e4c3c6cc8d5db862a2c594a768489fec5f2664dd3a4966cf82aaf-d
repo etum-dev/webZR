@@ -1,0 +1,11 @@
+./domain.go
+./exploit.go
+./host.go
+./location.go
+./notifications.go
+./search_result.go
+./service.go
+./shodan.go
+./ssl.go
+./utility.go
+./vuln.go
