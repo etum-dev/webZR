@@ -1,5 +1,0 @@
-./domain_query.go
-./exploits_query.go
-./query.go
-./reflect_types.go
-./search_params.go

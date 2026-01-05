@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 
 	"github.com/etum-dev/WebZR/scan"
 	"github.com/etum-dev/WebZR/utils"
@@ -120,6 +122,11 @@ func main() {
 	resultBatches := make(chan []utils.ScanResult, workerCount)
 	writerDone := utils.StreamResults(outputFile, resultBatches)
 
+	// (｡•̀ᴗ-)✧ Set up graceful shutdown on CTRL+C
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Goroutine to collect results from workers
 	go func() {
 		for res := range pool.Results() {
 			if res.Err != nil {
@@ -133,11 +140,25 @@ func main() {
 		close(resultBatches)
 	}()
 
-	if err := enqueueInputs(flags, flag.Args(), pool); err != nil {
-		fmt.Fprintf(os.Stderr, "input warning: %v\n", err)
+	// Goroutine to handle input and shutdown
+	inputDone := make(chan error, 1)
+	go func() {
+		inputDone <- enqueueInputs(flags, flag.Args(), pool)
+	}()
+
+	// Wait for either completion or interrupt
+	select {
+	case <-sigChan:
+		fmt.Fprintf(os.Stderr, "\n\n(｡•́︿•̀｡) CTRL+C detected! Saving results and shutting down gracefully...\n")
+		pool.Close() // Stop accepting new jobs, let current ones finish
+	case err := <-inputDone:
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "input warning: %v\n", err)
+		}
+		pool.Close() // Normal completion
 	}
 
-	pool.Close()
+	// Wait for all results to be written
 	total := <-writerDone
-	fmt.Printf("[*] Scan complete. %d result(s) written to %s\n", total, outputFile)
+	fmt.Printf("\n(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ Scan complete! %d result(s) written to %s\n", total, outputFile)
 }

@@ -48,5 +48,6 @@ ___
 ROADMAP:
 [ ] Add Shodan Enumeration
 [ ] Add a config parser (see utils/IDEA.md)
+[ ] Add caching for already scanned domains
 
 
