@@ -2,7 +2,6 @@ package scan
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"regexp"
 	"time"
@@ -14,7 +13,6 @@ import (
 
 // JSCrawler reads JS discovered on page and extracts wss:// urls
 func JSCrawler(domain string) []utils.ScanResult {
-	//TODO: convert the URL so chromedp likes it
 	pdomain := utils.AppendHttpsProto(domain)
 
 	var html string
@@ -41,25 +39,66 @@ func JSCrawler(domain string) []utils.ScanResult {
 		log.Print("Error automation logic: ", err, domain)
 
 	}
-	// TODO: search for stuff like WebSocket(url); and just report back that it potentially has one
-	// Parse the HTML and extract my ws urls
-	ws_proto_regex, err := regexp.Compile(`ws(s?):\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?`)
-	if err != nil {
-		fmt.Println("Regex search failed -> ", err)
+	matches := doTheRegex(html)
+	var results []utils.ScanResult
 
+	// Convert found URLs into ScanResult objects
+	for _, match := range matches {
+		results = append(results, utils.ScanResult{
+			StatusCode: 0,
+			URL:        match,
+			Host:       domain,
+			Scheme:     "javascript",
+			Success:    true,
+		})
 	}
 
-	fmt.Println(ws_proto_regex.FindString(html))
-	extractedUrl := ws_proto_regex.FindString(html)
-
-	var results []utils.ScanResult
-	results = append(results, utils.ScanResult{
-		StatusCode: 0,
-		URL:        extractedUrl,
-		Host:       domain,
-		Scheme:     "javascript",
-	})
-
 	return results
+}
 
+func doTheRegex(html string) []string {
+	ws_patterns := []string{
+		`ws(s?):\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?`,
+		`new\s+WebSocket\s*\(\s*['"]([^'"]+)['"]`,
+		`WebSocket\s*\(\s*['"]([^'"]+)['"]`,
+		`['"]ws(s?)://[^'"]+['"]`,
+		`socket\.io[^'"]*['"]([^'"]+)['"]`,
+	}
+
+	var allMatches []string
+	seen := make(map[string]bool) // Deduplicate matches
+
+	// Compile and test each pattern
+	for _, pattern := range ws_patterns {
+		regex, err := regexp.Compile(pattern)
+		if err != nil {
+			log.Printf("Error compiling regex pattern %s: %v", pattern, err)
+			continue
+		}
+
+		matches := regex.FindAllString(html, -1)
+		for _, match := range matches {
+			// Clean up the match (remove quotes if present)
+			cleaned := cleanMatch(match)
+			if cleaned != "" && !seen[cleaned] {
+				seen[cleaned] = true
+				allMatches = append(allMatches, cleaned)
+			}
+		}
+	}
+
+	return allMatches
+}
+
+// cleanMatch removes quotes and extracts clean WebSocket URLs
+func cleanMatch(match string) string {
+	// Remove surrounding quotes
+	cleaned := regexp.MustCompile(`^['"]|['"]$`).ReplaceAllString(match, "")
+
+	// Extract URL from constructor patterns like: new WebSocket("ws://example.com")
+	if constructorMatch := regexp.MustCompile(`(?:new\s+)?WebSocket\s*\(\s*['"]([^'"]+)['"]`).FindStringSubmatch(match); len(constructorMatch) > 1 {
+		return constructorMatch[1]
+	}
+
+	return cleaned
 }

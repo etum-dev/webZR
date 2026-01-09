@@ -40,14 +40,12 @@ func scanJob(job utils.Job) utils.JobResult {
 	}
 
 	// following marked as aggressive because they're slow on multiple hosts
-	// Endpoint scanning (aggressive mode)
 	if mode == "aggressive" {
 		if epResults := scan.ScanEndpoint(domain); len(epResults) > 0 {
 			results = append(results, epResults...)
 		}
 	}
 
-	// Subdomain scanning (aggressive mode only)
 	if mode == "aggressive" {
 		if subResults := scan.ScanSubdomain(domain); len(subResults) > 0 {
 			results = append(results, subResults...)
@@ -135,7 +133,7 @@ func main() {
 	resultBatches := make(chan []utils.ScanResult, workerCount)
 	writerDone := utils.StreamResults(outputFile, resultBatches)
 
-	// (｡•̀ᴗ-)✧ Set up graceful shutdown on CTRL+C
+	// CTRL+C
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 

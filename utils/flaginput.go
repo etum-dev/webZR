@@ -8,7 +8,6 @@ import (
 
 type Flags struct {
 	DomainInput  string // -d : can be a single domain or path to a domain list file
-	FuzzType     string // -fuzz : "lookup", "aggressive (all tests)"
 	OutputFile   string
 	WordlistFile string // -w : wordlist file
 	Debug        bool   // -debug : enable debug
@@ -34,10 +33,10 @@ func hasStdin() bool {
 	return false
 }
 
+// TODO: Add a typo/validity check. Best regards, i typo aggressive too much
 func FlagParse() *Flags {
 	f := &Flags{}
 	flag.StringVar(&f.DomainInput, "d", "", "Single domain or path to domain list file")
-	flag.StringVar(&f.FuzzType, "fuzz", "", "Fuzzing type: basic, aggressive. Basic only tries to find WS on the domain. Aggressive should be used on already determined WS hosts.")
 	flag.StringVar(&f.OutputFile, "of", "", "path or filename for outfile (default: scan_result.json)")
 	flag.StringVar(&f.WordlistFile, "w", "", "Path to wordlist file")
 	flag.StringVar(&f.Mode, "m", "", "Mode")

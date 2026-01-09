@@ -26,10 +26,9 @@ func TestScanEndpoint(t *testing.T) {
 func TestJSCrawler(t *testing.T) {
 	dommymommy := scan.JSCrawler("https://www.binance.com/en")
 	fmt.Println(dommymommy)
-	// want := "wss"
 }
 
 func TestCSPSearch(t *testing.T) {
-	csp := scan.CSPSearch("https://github.com")
+	csp := scan.ScanCSP("https://github.com")
 	fmt.Println(csp)
 }

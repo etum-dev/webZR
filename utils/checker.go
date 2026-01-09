@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"golang.org/x/sys/unix" // posix
-	// windows, untested
+	"golang.org/x/sys/unix"
 )
 
 var MAX_URL_LEN = 2097152 // chromiums cap - albeit unlikely
@@ -46,11 +45,6 @@ func CheckDiskspace(targetlist string) (requiredBytes int64, availableBytes uint
 		return 0, 0, false
 	}
 	availableBytes = stat.Bavail * uint64(stat.Bsize)
-
-	/* windows:
-	var freeBytesAvail uint64
-	err := windows.GetDiskFreeSpaceEx(windows.StringToUTF16Ptr("C:"), &freeBytesAvail) */
-	// literally who cares about windows ttho lol
 
 	// 2. Do the calculation
 	// Worst case: each line could produce MAX_URL_LEN + statuscode + host + scheme + success + insecure

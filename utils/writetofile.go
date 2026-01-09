@@ -17,42 +17,8 @@ type ScanResult struct {
 	Insecure   bool   `json:"insecure"` // true if ws://
 }
 
-type VulncheckResult struct {
-}
-
 type ScanOutput struct {
 	Results []ScanResult `json:"results"`
-}
-
-// TODO: Also log stuff found from CSP / JS.
-
-// writes scan results to a JSON file
-func WriteShit(filename string, results *ScanResult /*custom filename*/) error {
-
-	output := ScanOutput{
-		Results: []ScanResult{*results},
-	}
-	jsonData, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	// if file exists, check if ok
-	if _, err := os.Stat(filename); err == nil {
-		var check string
-		fmt.Println(filename, "file exists, continue?")
-		fmt.Scanln(&check)
-	}
-
-	err = os.WriteFile(filename, jsonData, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	fmt.Printf("[+] Results written to %s\n",
-		filename)
-
-	return nil
 }
 
 // writes multiple scan results to a JSON file

@@ -2,7 +2,7 @@
 # Test binary, built with `go test -c`
 *.test
 data/
-
+ignoreme.md
 donotpushthisyouwillgetfired.txt
 scan_results.json
 # compiled fils
