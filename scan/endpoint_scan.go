@@ -8,6 +8,7 @@ import (
 
 // ScanEndpoint tries to connect to common WebSocket endpoints for a given domain
 // Uses the endpoint wordlist and tests each target sequentially
+// TODO: in default scan mode, only run this if lighter scans did not return anything.
 func ScanEndpoint(domain string) []utils.ScanResult {
 	fmt.Printf("\n(｡´-ω･)ン? Scanning endpoints for: %s\n", domain)
 

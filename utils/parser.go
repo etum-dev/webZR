@@ -50,6 +50,19 @@ func AppendProto(inurl string) string {
 	return parsedUrl.String()
 }
 
+func AppendHttpsProto(inurl string) string {
+	inurl = strings.TrimSpace(inurl)
+	if !strings.Contains(inurl, "://") {
+		inurl = "https://" + inurl
+	}
+
+	parsedUrl, err := url.Parse(inurl)
+	if err != nil {
+		fmt.Println("parse error:", err)
+	}
+	return parsedUrl.String()
+}
+
 // ExtractHostname returns only the host:port portion of a domain or URL.
 func ExtractHostname(domain string) string {
 	withProto := AppendProto(domain)

@@ -73,15 +73,11 @@ func ScanCSP(domain string) []utils.ScanResult {
 			scheme = "ws"
 		}
 
-		// Extract host from URL
-		cleanURL := strings.TrimPrefix(wsURL, "wss://")
-		cleanURL = strings.TrimPrefix(cleanURL, "ws://")
-
 		// Create result for CSP finding
 		results = append(results, utils.ScanResult{
 			StatusCode: 0, // Not tested via connection
 			URL:        wsURL,
-			Host:       cleanURL,
+			Host:       domain,
 			Scheme:     scheme,
 			Success:    true, // Found in CSP = success
 			Insecure:   scheme == "ws",

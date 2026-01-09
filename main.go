@@ -34,9 +34,14 @@ func scanJob(job utils.Job) utils.JobResult {
 	if cspResults := scan.ScanCSP(domain); len(cspResults) > 0 {
 		results = append(results, cspResults...)
 	}
+	// In addition, crawl main and search for basic wss strings:
+	if jsResults := scan.JSCrawler(domain); len(jsResults) > 0 {
+		results = append(results, jsResults...)
+	}
 
-	// Endpoint scanning (basic mode)
-	if mode == "basic" || mode == "aggressive" {
+	// following marked as aggressive because they're slow on multiple hosts
+	// Endpoint scanning (aggressive mode)
+	if mode == "aggressive" {
 		if epResults := scan.ScanEndpoint(domain); len(epResults) > 0 {
 			results = append(results, epResults...)
 		}
@@ -80,6 +85,14 @@ func enqueueInputs(flags *utils.Flags, extraArgs []string, pool *utils.WorkerPoo
 			}
 		} else {
 			enqueue(flags.DomainInput)
+		}
+	}
+	if flags.OutputFile != "" {
+		if _, err := os.Stat(flags.OutputFile); err == nil {
+			var check string
+			fmt.Println(flags.OutputFile, "file exists, continue?")
+			fmt.Scanln(&check)
+
 		}
 	}
 

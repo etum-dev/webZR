@@ -10,7 +10,7 @@ import (
 // https://github.com/ffuf/ffuf/blob/57da720af7d1b66066cbbde685b49948f886b29c/pkg/output/stdout.go
 type ScanResult struct {
 	StatusCode int    `json:"status"`
-	URL        string `json:"url"`
+	URL        string `json:"url"` //TODO: url is the found ws url(s), while host is the target scanned.
 	Host       string `json:"host"`
 	Scheme     string `json:"scheme"` // ws or wss
 	Success    bool   `json:"success"`
@@ -27,7 +27,7 @@ type ScanOutput struct {
 // TODO: Also log stuff found from CSP / JS.
 
 // writes scan results to a JSON file
-func WriteShit(filename string, results *ScanResult) error {
+func WriteShit(filename string, results *ScanResult /*custom filename*/) error {
 
 	output := ScanOutput{
 		Results: []ScanResult{*results},
@@ -36,13 +36,14 @@ func WriteShit(filename string, results *ScanResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
+
 	// if file exists, check if ok
 	if _, err := os.Stat(filename); err == nil {
 		var check string
 		fmt.Println(filename, "file exists, continue?")
 		fmt.Scanln(&check)
 	}
-	// TODO: make timestamp filename
+
 	err = os.WriteFile(filename, jsonData, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)

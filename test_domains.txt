@@ -1,3 +1,4 @@
+www.binance.com
 notion.so
 192.168.88.67:3000
 websocket.org
