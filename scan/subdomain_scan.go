@@ -8,6 +8,7 @@ import (
 
 // ScanSubdomain tries to find WebSocket subdomains of a domain
 // TODO: in default scan mode, only run this if lighter scans did not return anything.
+// TODO: This seems to choke a lot. Should utilize something like subfinder methodology here.
 func ScanSubdomain(domain string) []utils.ScanResult {
 	fmt.Printf("\n(っ´▽`)っ Scanning subdomains for: %s\n", domain)
 

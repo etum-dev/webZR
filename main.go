@@ -45,12 +45,13 @@ func scanJob(job utils.Job) utils.JobResult {
 			results = append(results, epResults...)
 		}
 	}
+	// SUbdomain scan huge bottleneck. commenting for now, use subfinder pipe instead
 
-	if mode == "aggressive" {
+	/*if mode == "aggressive" {
 		if subResults := scan.ScanSubdomain(domain); len(subResults) > 0 {
 			results = append(results, subResults...)
 		}
-	}
+	}*/
 
 	return utils.JobResult{
 		Job:     job,

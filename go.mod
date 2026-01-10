@@ -6,8 +6,6 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
 	github.com/chromedp/chromedp v0.14.2
 	github.com/gorilla/websocket v1.5.3
-	github.com/joho/godotenv v1.5.1
-	github.com/shadowscatcher/shodan v1.0.8
 	golang.org/x/sys v0.34.0
 )
 
