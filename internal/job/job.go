@@ -1,6 +1,7 @@
 package scanjob
 
 import (
+	config "github.com/etum-dev/WebZR/internal/flaginput"
 	"github.com/etum-dev/WebZR/pkg/utils"
 	"github.com/etum-dev/WebZR/pkg/worker"
 )
@@ -8,7 +9,7 @@ import (
 // Job is a single domain scan request.
 type Job struct {
 	Domain string
-	Flags  *Flags
+	Flags  *config.Flags
 }
 
 // JobResult is the output of a processed Job.

@@ -8,104 +8,25 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
-	"time"
 
-	scanjob "github.com/etum-dev/WebZR/internal"
+	config "github.com/etum-dev/WebZR/internal/flaginput"
+	scanjob "github.com/etum-dev/WebZR/internal/job"
 	"github.com/etum-dev/WebZR/pkg/scan"
 	"github.com/etum-dev/WebZR/pkg/utils"
 )
 
-//timer := time.Now()
-
 const outputFile = "scan_results.json"
 
-// move to internal/job because main is fat
-func scanJob(job scanjob.Job) scanjobJobResult {
-	domain := utils.CheckDomain(job.Domain)
-	if domain == "" {
-		return scanjobJobResult{Job: job, Err: fmt.Errorf("empty domain")}
-	}
-
-	var results []utils.ScanResult
-	mode := job.Flags.Mode
-	if mode == "" {
-		mode = "basic"
-	}
-
-	// Always try CSP first (fast, no brute force)
-	if cspResults := scan.ScanCSP(domain); len(cspResults) > 0 {
-		results = append(results, cspResults...)
-	}
-	// Crawl page JS and search for wss strings
-	if jsResults := scan.JSCrawler(domain); len(jsResults) > 0 {
-		results = append(results, jsResults...)
-	}
-
-	// aggressive = request heavy scans
-	if mode == "aggressive" {
-		if epResults := scan.ScanEndpoint(domain); len(epResults) > 0 {
-			results = append(results, epResults...)
-		}
-	}
-
-	// Enhanced subdomain scanning with configurable options
-	//TODO: Do a subfinder before the fuzz, and then establish Ws accordingly. Way less shot in the dark.
-	subdomainMode := job.Flags.SubdomainMode
-	if subdomainMode == "" {
-		subdomainMode = "off" // default
-	}
-
-	if subdomainMode != "off" {
-		var subResults []utils.ScanResult
-
-		if subdomainMode == "basic" {
-			// Use basic subdomain scanning with limited targets
-			opts := scan.SubdomainScanOptions{
-				MaxConcurrent: job.Flags.SubdomainWorkers,
-				Timeout:       5 * time.Second,
-				StopOnFirst:   true,
-				MaxSubdomains: func() int {
-					if job.Flags.SubdomainMax < 25 {
-						return job.Flags.SubdomainMax
-					}
-					return 25
-				}(),
-				PrioritizeWS: true,
-			}
-			subResults = scan.ScanSubdomainWithOptions(domain, opts)
-		} else if subdomainMode == "aggressive" {
-			// Use aggressive subdomain scanning with more targets
-			opts := scan.SubdomainScanOptions{
-				MaxConcurrent: job.Flags.SubdomainWorkers,
-				Timeout:       3 * time.Second,
-				StopOnFirst:   false,
-				MaxSubdomains: job.Flags.SubdomainMax,
-				PrioritizeWS:  true,
-			}
-			subResults = scan.ScanSubdomainWithOptions(domain, opts)
-		}
-
-		if len(subResults) > 0 {
-			results = append(results, subResults...)
-		}
-	}
-
-	return scanjobJobResult{
-		Job:     job,
-		Results: results,
-	}
-}
-
 // enqueueInputs feeds domains from flags, extra args, and stdin into the handler.
-func enqueueInputs(flags *scanjobFlags, extraArgs []string, h *scanjobHandler) error {
+func enqueueInputs(flags *config.Flags, extraArgs []string, h *scanjob.Handler) error {
 	var firstErr error
 
 	enqueue := func(domain string) {
-		h.AddJob(scanjobJob{Domain: domain, Flags: flags})
+		h.AddJob(scanjob.Job{Domain: domain, Flags: flags})
 	}
 
 	if flags.DomainInput != "" {
-		if scanjobIsFile(flags.DomainInput) {
+		if config.IsFile(flags.DomainInput) {
 			file, err := os.Open(flags.DomainInput)
 			if err != nil {
 				return err
@@ -158,7 +79,7 @@ func stdinHasData() bool {
 }
 
 func main() {
-	flags := flag.FlagParse()
+	flags := config.FlagParse()
 	scan.SetVerbose(flags.Verbose)
 
 	workerCount := runtime.NumCPU()
@@ -166,7 +87,7 @@ func main() {
 		workerCount = 2
 	}
 
-	h := scanjob.NewHandler(workerCount, scanJob)
+	h := scanjob.NewHandler(workerCount, scanjob.RunScan)
 
 	listener := make(chan scanjob.JobResult, workerCount)
 	go h.Run(listener)
