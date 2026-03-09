@@ -2,7 +2,6 @@ package scan
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +35,7 @@ func ScanSubdomain(domain string) []utils.ScanResult {
 
 // ScanSubdomainWithOptions provides configurable subdomain scanning
 func ScanSubdomainWithOptions(domain string, opts SubdomainScanOptions) []utils.ScanResult {
-	fmt.Printf("\n🔍 Subdomain scanning for: %s (max:%d, concurrent:%d)\n", domain, opts.MaxSubdomains, opts.MaxConcurrent)
+	fmt.Printf("\nSubdomain scanning for: %s (max:%d, concurrent:%d)\n", domain, opts.MaxSubdomains, opts.MaxConcurrent)
 
 	targets := GenerateSubdomainTargets(domain)
 	if len(targets) == 0 {
@@ -46,7 +45,7 @@ func ScanSubdomainWithOptions(domain string, opts SubdomainScanOptions) []utils.
 
 	// Limit and prioritize targets
 	targets = optimizeTargetList(targets, opts)
-	fmt.Printf("📋 Testing %d optimized subdomain targets\n", len(targets))
+	fmt.Printf("Testing %d optimized subdomain targets\n", len(targets))
 
 	if len(targets) == 0 {
 		return nil
@@ -62,11 +61,6 @@ func optimizeTargetList(targets []Target, opts SubdomainScanOptions) []Target {
 		return targets
 	}
 
-	// Prioritize WebSocket-related subdomains if enabled
-	if opts.PrioritizeWS {
-		targets = prioritizeWebSocketTargets(targets)
-	}
-
 	// Limit to max subdomains
 	if len(targets) > opts.MaxSubdomains {
 		targets = targets[:opts.MaxSubdomains]
@@ -75,35 +69,7 @@ func optimizeTargetList(targets []Target, opts SubdomainScanOptions) []Target {
 	return targets
 }
 
-// prioritizeWebSocketTargets sorts targets to test WebSocket-related subdomains first
-// TODO: append subfinder instead.
-func prioritizeWebSocketTargets(targets []Target) []Target {
-	wsKeywords := []string{"ws", "websocket", "socket", "chat", "stream", "live", "realtime", "push", "feed", "api"}
-
-	sort.Slice(targets, func(i, j int) bool {
-		scoreI := getWSPriorityScore(targets[i].URL, wsKeywords)
-		scoreJ := getWSPriorityScore(targets[j].URL, wsKeywords)
-		return scoreI > scoreJ // Higher score first
-	})
-
-	return targets
-}
-
-// getWSPriorityScore calculates priority score for WebSocket-related subdomains
-func getWSPriorityScore(url string, keywords []string) int {
-	score := 0
-	urlLower := fmt.Sprintf("%s", url)
-
-	for _, keyword := range keywords {
-		if containsKeyword(urlLower, keyword) {
-			score += 10
-		}
-	}
-
-	return score
-}
-
-// containsKeyword checks if URL contains a WebSocket-related keyword
+// TODO: containsKeyword checks if URL contains a WebSocket-related keyword
 func containsKeyword(url, keyword string) bool {
 	if len(url) == 0 || len(keyword) == 0 {
 		return false
@@ -157,7 +123,7 @@ func testSubdomainsConcurrently(targets []Target, opts SubdomainScanOptions) []u
 			if result != nil && result.Success {
 				results = append(results, *result)
 				successCount++
-				fmt.Printf("✅ WebSocket subdomain found: %s\n", result.URL)
+				fmt.Printf("(｡･д･)ﾉｵ WebSocket subdomain found: %s\n", result.URL)
 
 				// Stop on first success if configured
 				if opts.StopOnFirst {
@@ -171,7 +137,7 @@ func testSubdomainsConcurrently(targets []Target, opts SubdomainScanOptions) []u
 			}
 		}
 
-		fmt.Printf("📊 Subdomain scan completed: %d/%d successful\n", successCount, len(targets))
+		fmt.Printf("-ω- Subdomain scan completed: %d/%d successful\n", successCount, len(targets))
 	}()
 
 	// Wait for workers to finish

@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // https://github.com/ffuf/ffuf/blob/57da720af7d1b66066cbbde685b49948f886b29c/pkg/output/stdout.go
 type ScanResult struct {
 	StatusCode int    `json:"status"`
-	URL        string `json:"url"` //TODO: url is the found ws url(s), while host is the target scanned.
+	URL        string `json:"url"`
 	Host       string `json:"host"`
 	Scheme     string `json:"scheme"` // ws or wss
 	Success    bool   `json:"success"`
@@ -19,6 +20,18 @@ type ScanResult struct {
 
 type ScanOutput struct {
 	Results []ScanResult `json:"results"`
+}
+
+func OutputFileName() string {
+	date := time.Now()
+	append := date.Unix()
+	// todo: more extensions, like csv, plaintext
+	basename := "scan_results"
+	extension := ".json"
+
+	//const outputFile = "scan_results"+append+extension
+	outputFile := fmt.Sprintf("%s%d%s", basename, append, extension)
+	return outputFile
 }
 
 // writes multiple scan results to a JSON file
@@ -62,9 +75,8 @@ func StreamResults(filename string, input <-chan []ScanResult) <-chan int {
 				fmt.Fprintf(resultFile, "\n%s\n", suffix)
 				resultFile.Close()
 				if written > 0 {
+					// seems this code is never reached?
 					fmt.Printf("[+] %d results written to %s\n", written, filename)
-				} else {
-					os.Remove(filename)
 				}
 			}
 			done <- total

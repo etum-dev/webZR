@@ -15,8 +15,6 @@ import (
 	"github.com/etum-dev/WebZR/pkg/utils"
 )
 
-const outputFile = "scan_results.json"
-
 // enqueueInputs feeds domains from flags, extra args, and stdin into the handler.
 func enqueueInputs(flags *config.Flags, extraArgs []string, h *scanjob.Handler) error {
 	var firstErr error
@@ -93,7 +91,7 @@ func main() {
 	go h.Run(listener)
 
 	resultBatches := make(chan []utils.ScanResult, workerCount)
-	writerDone := utils.StreamResults(outputFile, resultBatches)
+	writerDone := utils.StreamResults(flags.OutputFile, resultBatches)
 
 	// CTRL+C
 	sigChan := make(chan os.Signal, 1)
@@ -130,11 +128,12 @@ func main() {
 		}
 	}
 
-	// Wait for all in-flight jobs to finish, then shut down the listener
+	// Wait for all to finish, then shut down the listener
 	h.Wait()
 	close(listener)
 	<-collectorDone
 
 	total := <-writerDone
-	fmt.Printf("\n(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ Scan complete! %d result(s) written to %s\n", total, outputFile)
+	// add other message if 0 results
+	fmt.Printf("\n(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ Scan complete! %d result(s) written to %s\n", total, flags.OutputFile)
 }

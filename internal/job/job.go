@@ -22,11 +22,11 @@ type JobResult struct {
 // JobHandler processes a single Job and returns a JobResult.
 type JobHandler func(Job) JobResult
 
-// Handler manages a pool of scan workers using a pool-of-channels pattern:
-// each worker registers its availability via the Pool channel, and the
-// dispatcher goroutine routes incoming jobs to the first available worker.
+// Handler manages a pool of scan workers using a pool-of-channels pattern
+// https://jsschools.com/golang/advanced-go-channel-patterns-for-building-robust-d/
 type Handler struct {
-	JobQueue  chan Job
+	JobQueue chan Job
+	// pool for workers to tell when available
 	Pool      chan chan Job
 	WaitGroup worker.WaitGroup
 	threads   int

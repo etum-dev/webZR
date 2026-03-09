@@ -1,10 +1,14 @@
 package scan
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/etum-dev/WebZR/pkg/utils"
+	"github.com/projectdiscovery/subfinder/v2/pkg/runner"
 )
 
 // Target represents a single URL to test for WebSocket support
@@ -42,10 +46,37 @@ func GenerateEndpointTargets(domain string) []Target {
 	return targets
 }
 
-// GenerateSubdomainTargets creates all subdomain-based targets for a domain
-// Returns a list of URLs to test (does NOT perform connections)
+// Returns a list of URLs to test (does not perform connections)
+// it first retrieves valid targets via subfinder,
+// if none found, it will instead fall back on a default wordlist.
 func GenerateSubdomainTargets(domain string) []Target {
-	subdomains, err := getSubdomainWordlist()
+	// first, do a subfinder on the target.
+	subfinderOpts := &runner.Options{
+		Threads:            10, // TODO: this should be dinamic based on host
+		Timeout:            30,
+		MaxEnumerationTime: 20,
+	}
+	subfinder, err := runner.NewRunner(subfinderOpts)
+	if err != nil {
+		fmt.Printf("subfinder failed: %v", err)
+	}
+	output := &bytes.Buffer{}
+	var sourceMap map[string]map[string]struct{}
+	if sourceMap, err = subfinder.EnumerateSingleDomainWithCtx(context.Background(), domain, []io.Writer{output}); err != nil {
+		fmt.Printf("Enumeration failed on domain: %v", err)
+	}
+	var targets []Target
+	for subdomain, _ := range sourceMap {
+		targets = append(targets, Target{
+			URL:    subdomain,
+			Source: "subdomain",
+		})
+
+		fmt.Println(targets)
+	}
+
+	// if bad results, manually read wordlist and shoot
+	/*subdomains, err := getSubdomainWordlist()
 	if err != nil || len(subdomains) == 0 {
 		return nil
 	}
@@ -79,7 +110,7 @@ func GenerateSubdomainTargets(domain string) []Target {
 			})
 		}
 	}
-
+	*/
 	return targets
 }
 
