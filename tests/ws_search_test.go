@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"bufio"
@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/etum-dev/WebZR/scan"
+	"github.com/etum-dev/WebZR/pkg/scan"
 )
 
 func TestScanEndpoint(t *testing.T) {
